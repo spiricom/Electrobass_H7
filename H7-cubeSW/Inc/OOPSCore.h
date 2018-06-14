@@ -427,19 +427,12 @@ typedef enum NeuronMode
     NeuronModeNil
 } NeuronMode;
 
-typedef enum NeuronFilterPlacement
-{
-    AfterFeedback = 0,
-    InFeedback,
-} NeuronFilterPlacement;
-
 typedef struct _tNeuron
 {
     
     tPoleZero* f;
     
     NeuronMode mode;
-    NeuronFilterPlacement filterPlacement;
     
     float voltage, current;
     float timeStep;
@@ -449,11 +442,171 @@ typedef struct _tNeuron
     float rate[3];
     float V[3];
     float P[3];
-    float gK, gN, gL, invC;
+    float gK, gN, gL, C;
     
     void (*sampleRateChanged)(struct _tNeuron *self);
     
 } tNeuron;
+
+#define NUM_VOCODER_PARAM 8
+#define NBANDS 16
+
+typedef struct _tVocoder
+{
+    float param[NUM_VOCODER_PARAM];
+    
+    float gain;         //output level
+    float thru, high;   //hf thru
+    float kout;         //downsampled output
+    int32_t  kval;      //downsample counter
+    int32_t  nbnd;      //number of bands
+    
+    //filter coeffs and buffers - seems it's faster to leave this global than make local copy
+    float f[NBANDS][13]; //[0-8][0 1 2 | 0 1 2 3 | 0 1 2 3 | val rate]
+    
+    void (*sampleRateChanged)(struct _tVocoder *self);
+} tVocoder;
+
+#define NUM_TALKBOX_PARAM 4
+
+typedef struct _tTalkbox
+{
+    float param[NUM_TALKBOX_PARAM];
+    
+    ///global internal variables
+    float car0[TALKBOX_BUFFER_LENGTH], car1[TALKBOX_BUFFER_LENGTH];
+    float window[TALKBOX_BUFFER_LENGTH];
+    float buf0[TALKBOX_BUFFER_LENGTH], buf1[TALKBOX_BUFFER_LENGTH];
+    
+    float emphasis;
+    int32_t K, N, O, pos;
+    float wet, dry, FX;
+    float d0, d1, d2, d3, d4;
+    float u0, u1, u2, u3, u4;
+    
+    void (*sampleRateChanged)(struct _tTalkbox *self);
+} tTalkbox;
+
+typedef struct _tMidiNote
+{
+    uint8_t pitch;
+    uint8_t velocity;
+    oBool on;
+} tMidiNote;
+
+typedef struct _tMidiNode tMidiNode;
+
+typedef struct _tMidiNode
+{
+    tMidiNode* prev;
+    tMidiNode* next;
+    tMidiNote midiNote;
+} tMidiNode;
+
+typedef struct _tPoly
+{
+    tMidiNode midiNodes[128];
+    tMidiNode* onListFirst;
+    tMidiNode* offListFirst;
+    
+} tPoly;
+
+typedef struct _t808Cowbell {
+    
+    tSquare* p[2];
+    tNoise* stick;
+    tSVF* bandpassOsc;
+    tSVF* bandpassStick;
+    tEnvelope* envGain;
+    tEnvelope* envStick;
+    tEnvelope* envFilter;
+    tHighpass* highpass;
+    float oscMix;
+    float filterCutoff;
+    
+} t808Cowbell;
+
+typedef struct _t808Hihat {
+    
+    // 6 Square waves
+    tSquare* p[6];
+    tNoise* n;
+    tSVF* bandpassOsc;
+    tSVF* bandpassStick;
+    tEnvelope* envGain;
+    tEnvelope* envStick;
+    tHighpass* highpass;
+    tNoise* stick;
+    
+    float oscNoiseMix;
+    
+    
+} t808Hihat;
+
+typedef struct _t808Snare {
+    
+    // Tone 1, Tone 2, Noise
+    tTriangle* tone[2]; // Tri (not yet antialiased or wavetabled)
+    tNoise* noiseOsc;
+    tSVF* toneLowpass[2];
+    tSVF* noiseLowpass; // Lowpass from SVF filter
+    tEnvelope* toneEnvOsc[2];
+    tEnvelope* toneEnvGain[2];
+    tEnvelope* noiseEnvGain;
+    tEnvelope* toneEnvFilter[2];
+    tEnvelope* noiseEnvFilter;
+    
+    float toneGain[2];
+    float noiseGain;
+    
+    float toneNoiseMix;
+    
+    float tone1Freq, tone2Freq;
+    
+    float noiseFilterFreq;
+    
+    
+} t808Snare;
+
+#define STACK_SIZE 128
+typedef struct _tStack
+{
+    int data[STACK_SIZE];
+    uint16_t pos;
+    uint16_t size;
+    uint16_t capacity;
+    oBool ordered;
+    
+} tStack;
+
+
+/* tMPoly */
+typedef struct _tMPoly
+{
+    int numVoices;
+    int numVoicesActive;
+    
+    int voices[NUM_VOICES][2];
+    
+    int notes[128][2];
+    
+    int CCs[128];
+    
+    uint8_t CCsRaw[128];
+    
+    int lastVoiceToChange;
+    
+    tStack* stack;
+    tStack* orderStack;
+    
+    int32_t pitchBend;
+    
+    int currentNote;
+    int currentVoice;
+    int currentVelocity;
+    int maxLength;
+    
+} tMPoly;
 
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ //
@@ -475,7 +628,13 @@ void     tStifKarpSampleRateChanged (tStifKarp *c);
 
 void     tNeuronSampleRateChanged(tNeuron* n);
 void     tCompressorSampleRateChanged(tCompressor* n);
-void     tButterworthSampleRateChanged(tCompressor* n);
+void     tButterworthSampleRateChanged(tButterworth* n);
+
+void     tVocoderSampleRateChanged(tVocoder* n);
+
+void     t808SnareSampleRateChanged(t808Snare* n);
+void     t808HihatSampleRateChanged(t808Hihat* n);
+void     t808CowbellSampleRateChanged(t808Cowbell* n);
 
 typedef enum OOPSRegistryIndex
 {
@@ -507,7 +666,15 @@ typedef enum OOPSRegistryIndex
     T_STIFKARP,
     T_NEURON,
     T_COMPRESSOR,
-		T_BUTTERWORTH,
+    T_BUTTERWORTH,
+    T_VOCODER,
+    T_TALKBOX,
+    T_POLY,
+    T_MPOLY,
+    T_808SNARE,
+    T_808HIHAT,
+    T_808COWBELL,
+    T_STACK,
     T_INDEXCNT
 }OOPSRegistryIndex;
 
@@ -555,7 +722,7 @@ typedef struct _OOPS
 #endif
         
 #if N_ONEZERO
-    tOneZero           tOneZeroRegistry         [N_ONEZERO];
+    tOneZero           tOneZeroRegistry         [N_ONEPOLE];
 #endif
         
 #if N_TWOZERO
@@ -634,6 +801,39 @@ typedef struct _OOPS
     
 #if N_COMPRESSOR    
     tCompressor        tCompressorRegistry      [N_COMPRESSOR];
+#endif
+    
+#if N_VOCODER
+    tVocoder           tVocoderRegistry      [N_VOCODER];
+#endif
+    
+#if N_TALKBOX
+    tTalkbox           tTalkboxRegistry         [N_TALKBOX];
+#endif
+
+#if N_POLY
+    tPoly  tPolyRegistry     [N_POLY];
+#endif
+    
+    
+#if N_MPOLY
+    tMPoly  tMPolyRegistry     [N_MPOLY];
+#endif
+    
+#if N_808SNARE
+    t808Snare        t808SnareRegistry      [N_808SNARE];
+#endif
+    
+#if N_808HIHAT
+    t808Hihat         t808HihatRegistry      [N_808HIHAT];
+#endif
+    
+#if N_808COWBELL
+    t808Cowbell       t808CowbellRegistry      [N_808COWBELL];
+#endif
+    
+#if N_STACK
+    tStack            tStackRegistry      [N_STACK];
 #endif
     
     

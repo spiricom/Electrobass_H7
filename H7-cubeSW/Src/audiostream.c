@@ -3,19 +3,21 @@
 #include "main.h"
 #include "codec.h"
 
-#define AUDIO_FRAME_SIZE     32
+#define AUDIO_FRAME_SIZE     16
 #define HALF_BUFFER_SIZE      AUDIO_FRAME_SIZE * 2 //number of samples per half of the "double-buffer" (twice the audio frame size because there are interleaved samples for both left and right channels)
 #define AUDIO_BUFFER_SIZE     AUDIO_FRAME_SIZE * 4 //number of samples in the whole data structure (four times the audio frame size because of stereo and also double-buffering/ping-ponging)
+#define NUM_SINES 			50
+#define INV_NUM_SINES 		1.0f/NUM_SINES
 
 // align is to make sure they are lined up with the data boundaries of the cache 
 // at(0x3....) is to put them in the D2 domain of SRAM where the DMA can access them
 // (otherwise the TX times out because the DMA can't see the data location) -JS
 
 
-
 ALIGN_32BYTES (int16_t audioOutBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2);
 ALIGN_32BYTES (int16_t audioInBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2);
 
+float detuneAmounts[NUM_SINES];
 
 int16_t inBuffer[HALF_BUFFER_SIZE];
 int16_t outBuffer[HALF_BUFFER_SIZE];
@@ -28,6 +30,7 @@ float sample = 0.0f;
 
 float adcx[8];
 
+float detuneMax = 3.0f;
 uint8_t audioInCV = 0;
 uint8_t audioInCVAlt = 0;
 
@@ -36,7 +39,7 @@ float audioTickL(float audioIn);
 float audioTickR(float audioIn);
 void buttonCheck(void);
 
-tCycle* mySine;
+tSawtooth* mySine[NUM_SINES];
 
 
 
@@ -59,8 +62,13 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 	HAL_Delay(100);
 
 	adcVals = myADCArray;
-	mySine = tCycleInit();
-	tCycleSetFreq(mySine, 440.0f);
+	for (int i = 0; i < NUM_SINES; i++)
+	{
+		mySine[i] = tSawtoothInit();
+		tSawtoothSetFreq(mySine[i], (randomNumber() * 2000.0f) + 40.0f);
+		detuneAmounts[i] = (randomNumber() * detuneMax) - (detuneMax * 0.5f);
+	}
+
 	// set up the I2S driver to send audio data to the codec (and retrieve input as well)	
 	transmit_status = HAL_SAI_Transmit_DMA(hsaiOut, (uint8_t *)&audioOutBuffer[0], AUDIO_BUFFER_SIZE);
 	receive_status = HAL_SAI_Receive_DMA(hsaiIn, (uint8_t *)&audioInBuffer[0], AUDIO_BUFFER_SIZE);
@@ -109,13 +117,20 @@ float rightInput = 0.0f;
 
 float audioTickL(float audioIn) 
 {
+	/*
+	for (int i = 0; i < 4; i++)
+	{
+		tCycleSetFreq(mySine[i], ((((float)adcVals[i]) * INV_TWO_TO_16) * 1000.0f) + 40.0f);
 
-	tCycleSetFreq(mySine, ((((float)adcVals[0]) * INV_TWO_TO_16) * 1000.0f) + 40.0f);
-	sample = tCycleTick(mySine);
-
-	sample = audioIn;
-
-	sample *= (((float)adcVals[1]) * INV_TWO_TO_16) * tCycleTick(mySine);
+	}
+	*/
+	for (int i = 0; i < NUM_SINES; i++)
+	{
+		tSawtoothSetFreq(mySine[i], ((((float)adcVals[i % 4]) * INV_TWO_TO_16) * 1000.0f) + 100.0f + detuneAmounts[i]);
+		sample += tSawtoothTick(mySine[i]);
+	}
+	//sample = audioIn;
+	sample *= INV_NUM_SINES;
 	return sample;
 }
 

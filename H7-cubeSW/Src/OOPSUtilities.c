@@ -8,9 +8,21 @@
   ==============================================================================
 */
 
-#include "OOPSUtilities.h"
-#include "OOPSWavetables.h"
-#include "OOPS.h"
+
+#if _WIN32 || _WIN64
+
+#include "..\Inc\OOPSUtilities.h"
+#include "..\Inc\OOPSWavetables.h"
+#include "..\Inc\OOPS.h"
+
+#else
+
+#include "../Inc/OOPSUtilities.h"
+#include "../Inc/OOPSWavetables.h"
+#include "../Inc/OOPS.h"
+
+#endif
+
 
 #if N_COMPRESSOR
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ Compressor ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ //
@@ -408,3 +420,538 @@ void    tRampSampleRateChanged(tRamp* const r)
 }
 
 #endif //N_RAMP
+
+#if N_POLY
+/* Poly Handler */
+
+static void nodeListInit(tPoly* poly)
+{
+    for (int16_t i = 0; i < 128; i++)
+    {
+        poly->midiNodes[i].midiNote.pitch = i;
+        poly->midiNodes[i].midiNote.velocity = 0;
+        poly->midiNodes[i].midiNote.on = OFALSE;
+    }
+}
+
+// Initially everything is off, init as such
+static void offListInit(tPoly* poly)
+{
+    tMidiNode* prevNode = NULL;
+    tMidiNode* curNode = &poly->midiNodes[0];
+    poly->offListFirst = curNode;
+    
+    for (int16_t i = 1; i < 128; i++)
+    {
+        curNode->prev = prevNode;
+        curNode->next = &poly->midiNodes[i];
+        
+        prevNode = curNode;
+        curNode = &poly->midiNodes[i];
+    }
+    // Set the final node
+    curNode->prev = prevNode;
+    curNode->next = NULL;
+}
+
+static void onListInit(tPoly* poly)
+{
+    poly->onListFirst = NULL;
+}
+
+tPoly*    tPolyInit()
+{
+    tPoly* poly = &oops.tPolyRegistry[oops.registryIndex[T_POLY]++];
+    nodeListInit(poly);
+    offListInit(poly);
+    onListInit(poly);
+    
+    return poly;
+}
+
+
+tMidiNote* tPolyGetMidiNote(tPoly* poly, int8_t voiceIndex)
+{
+    tMidiNote* midiNote = NULL;
+    
+    tMidiNode* currNode = poly->onListFirst;
+    
+    int8_t i = 0;
+    while (i < voiceIndex && currNode != NULL)
+    {
+        currNode = currNode->next;
+        i++;
+    }
+    
+    if (currNode != NULL)
+        midiNote = &(currNode->midiNote);
+    
+    return midiNote;
+}
+
+static void removeNoteFromOffList(tPoly* poly, int8_t midiNoteNumber)
+{
+    // If this has no prev, this is the first node on the OFF list
+    if (poly->midiNodes[midiNoteNumber].prev == NULL)
+        poly->offListFirst = poly->midiNodes[midiNoteNumber].next;
+    
+    // Awkward handling to avoid deref null pointers
+    if (poly->midiNodes[midiNoteNumber].prev != NULL)
+        poly->midiNodes[midiNoteNumber].prev->next = poly->midiNodes[midiNoteNumber].next;
+    
+    if (poly->midiNodes[midiNoteNumber].next != NULL)
+        poly->midiNodes[midiNoteNumber].next->prev = poly->midiNodes[midiNoteNumber].prev;
+    
+    poly->midiNodes[midiNoteNumber].next = NULL;
+    poly->midiNodes[midiNoteNumber].prev = NULL;
+}
+
+static void prependNoteToOnList(tPoly* poly, int midiNoteNumber)
+{
+    if (poly->onListFirst != NULL)
+    {
+        poly->midiNodes[midiNoteNumber].next = poly->onListFirst;
+        poly->onListFirst->prev = &poly->midiNodes[midiNoteNumber];
+    }
+    poly->onListFirst = &poly->midiNodes[midiNoteNumber];
+}
+
+
+// TODO: Fail gracefully on odd MIDI situations
+//       For example, getting a note off for an already on note and vice-versa
+void tPolyNoteOn(tPoly* poly, int midiNoteNumber, float velocity)
+{
+    removeNoteFromOffList(poly, midiNoteNumber);
+    // Set the MIDI note on accordingly
+    poly->midiNodes[midiNoteNumber].midiNote.velocity = velocity;
+    poly->midiNodes[midiNoteNumber].midiNote.on = OTRUE;
+    prependNoteToOnList(poly, midiNoteNumber);
+}
+
+// Unfortunately similar code to removeNoteFromOffList without any clear way of factoring out to a helper function
+static void removeNoteFromOnList(tPoly* poly, int8_t midiNoteNumber)
+{
+    // If this has no prev, this is the first node on the OFF list
+    if (poly->midiNodes[midiNoteNumber].prev == NULL)
+        poly->onListFirst = poly->midiNodes[midiNoteNumber].next;
+    
+    // Awkward handling to avoid deref null pointers
+    if (poly->midiNodes[midiNoteNumber].prev != NULL)
+        poly->midiNodes[midiNoteNumber].prev->next = poly->midiNodes[midiNoteNumber].next;
+    
+    if (poly->midiNodes[midiNoteNumber].next != NULL)
+        poly->midiNodes[midiNoteNumber].next->prev = poly->midiNodes[midiNoteNumber].prev;
+    
+    poly->midiNodes[midiNoteNumber].next = NULL;
+    poly->midiNodes[midiNoteNumber].prev = NULL;
+}
+
+// Unfortunately similar code to prependNoteToOnList without any clear way of factoring out to a helper function
+static void prependNoteToOffList(tPoly* poly, int midiNoteNumber)
+{
+    if (poly->offListFirst != NULL)
+    {
+        poly->midiNodes[midiNoteNumber].next = poly->offListFirst;
+        poly->offListFirst->prev = &poly->midiNodes[midiNoteNumber];
+    }
+    poly->offListFirst = &poly->midiNodes[midiNoteNumber];
+}
+
+
+void tPolyNoteOff(tPoly* poly, int midiNoteNumber)
+{
+    removeNoteFromOnList(poly, midiNoteNumber);
+    // Set the MIDI note on accordingly
+    poly->midiNodes[midiNoteNumber].midiNote.velocity = 0;
+    poly->midiNodes[midiNoteNumber].midiNote.on = OFALSE;
+    prependNoteToOffList(poly, midiNoteNumber);
+}
+
+#endif // N_POLYHANDLER
+
+#if N_STACK
+// If stack contains note, returns index. Else returns -1;
+int tStack_contains(tStack* const ns, uint16_t noteVal)
+{
+    for (int i = 0; i < ns->size; i++)
+    {
+        if (ns->data[i] == noteVal)    return i;
+    }
+    return -1;
+}
+
+void tStack_add(tStack* const ns, uint16_t noteVal)
+{
+    uint8_t j;
+    
+    int whereToInsert = 0;
+    if (ns->ordered)
+    {
+        for (j = 0; j < ns->size; j++)
+        {
+            if (noteVal > ns->data[j])
+            {
+                if ((noteVal < ns->data[j+1]) || (ns->data[j+1] == -1))
+                {
+                    whereToInsert = j+1;
+                    break;
+                }
+            }
+        }
+    }
+    
+    //first move notes that are already in the stack one position to the right
+    for (j = ns->size; j > whereToInsert; j--)
+    {
+        ns->data[j] = ns->data[(j - 1)];
+    }
+    
+    //then, insert the new note into the front of the stack
+    ns->data[whereToInsert] = noteVal;
+    
+    ns->size++;
+}
+
+int tStack_addIfNotAlreadyThere(tStack* const ns, uint16_t noteVal)
+{
+    uint8_t j;
+
+    int added = 0;
+    
+    if (tStack_contains(ns, noteVal) == -1)
+    {
+        int whereToInsert = 0;
+        if (ns->ordered)
+        {
+            for (j = 0; j < ns->size; j++)
+            {
+                if (noteVal > ns->data[j])
+                {
+                    if ((noteVal < ns->data[j+1]) || (ns->data[j+1] == -1))
+                    {
+                        whereToInsert = j+1;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        //first move notes that are already in the stack one position to the right
+        for (j = ns->size; j > whereToInsert; j--)
+        {
+            ns->data[j] = ns->data[(j - 1)];
+        }
+        
+        //then, insert the new note into the front of the stack
+        ns->data[whereToInsert] = noteVal;
+        
+        ns->size++;
+        
+        added = 1;
+    }
+    
+    return added;
+}
+
+
+// Remove noteVal. return 1 if removed, 0 if not
+int tStack_remove(tStack* const ns, uint16_t noteVal)
+{
+    uint8_t k;
+    int foundIndex = tStack_contains(ns, noteVal);
+    int removed = 0;
+    
+    if (foundIndex >= 0)
+    {
+        for (k = 0; k < (ns->size - foundIndex); k++)
+        {
+            if ((k+foundIndex) >= (ns->capacity - 1))
+            {
+                ns->data[k + foundIndex] = -1;
+            }
+            else
+            {
+                ns->data[k + foundIndex] = ns->data[k + foundIndex + 1];
+                if ((k + foundIndex) == (ns->size - 1))
+                {
+                    ns->data[k + foundIndex + 1] = -1;
+                }
+            }
+            
+        }
+        // in case it got put on the stack multiple times
+        foundIndex--;
+        ns->size--;
+        removed = 1;
+    }
+    
+    
+    
+    return removed;
+}
+
+// Doesn't change size of data types
+void tStack_setCapacity(tStack* const ns, uint16_t cap)
+{
+    if (cap <= 0)
+        ns->capacity = 1;
+    else if (cap <= STACK_SIZE)
+        ns->capacity = cap;
+    else
+        ns->capacity = STACK_SIZE;
+    
+    for (int i = cap; i < STACK_SIZE; i++)
+    {
+        if ((int)ns->data[i] != -1)
+        {
+            ns->data[i] = -1;
+            ns->size -= 1;
+        }
+    }
+    
+    if (ns->pos >= cap)
+    {
+        ns->pos = 0;
+    }
+}
+
+int tStack_getSize(tStack* const ns)
+{
+    return ns->size;
+}
+
+void tStack_clear(tStack* const ns)
+{
+    for (int i = 0; i < STACK_SIZE; i++)
+    {
+        ns->data[i] = -1;
+    }
+    ns->pos = 0;
+    ns->size = 0;
+}
+
+// Next item in order of addition to stack. Return 0-31 if there is a next item to move to. Returns -1 otherwise.
+int tStack_next(tStack* const ns)
+{
+    int step = 0;
+    if (ns->size != 0) // if there is at least one note in the stack
+    {
+        if (ns->pos > 0) // if you're not at the most recent note (first one), then go backward in the array (moving from earliest to latest)
+        {
+            ns->pos--;
+        }
+        else
+        {
+            ns->pos = (ns->size - 1); // if you are the most recent note, go back to the earliest note in the array
+        }
+        
+        step = ns->data[ns->pos];
+        return step;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+int tStack_get(tStack* const ns, int which)
+{
+    return ns->data[which];
+}
+
+int tStack_first(tStack* const ns)
+{
+    return ns->data[0];
+}
+
+tStack* tStack_init(void)
+{
+    tStack* ns = &oops.tStackRegistry[oops.registryIndex[T_STACK]++];
+    
+    ns->ordered = OFALSE;
+    ns->size = 0;
+    ns->pos = 0;
+    ns->capacity = STACK_SIZE;
+    
+    for (int i = 0; i < STACK_SIZE; i++) ns->data[i] = -1;
+    
+    return ns;
+}
+
+#endif // N_STACK
+
+#if N_MPOLY
+
+tMPoly* tMPoly_init(void)
+{
+    tMPoly* poly = &oops.tMPolyRegistry[oops.registryIndex[T_MPOLY]++];
+    
+    poly->numVoices = NUM_VOICES;
+    poly->numVoicesActive = NUM_VOICES;
+    poly->lastVoiceToChange = 0;
+    
+    // Arp mode stuff
+    poly->currentVoice = 0;
+    poly->maxLength = 128;
+    poly->currentNote = -1;
+
+    //default learned CCs and notes are just the CCs 1-128 - notes are skipped
+    for (int i = 0; i < 128; i++)
+    {
+        poly->notes[i][0] = 0;
+        poly->notes[i][1] = 0;
+    }
+    
+    for (int i = 0; i < NUM_VOICES; i ++)
+    {
+        poly->voices[i][0] = -1;
+    }
+    
+    poly->stack = tStack_init();
+    poly->orderStack = tStack_init();
+    
+    return poly;
+}
+
+
+//instead of including in dacsend, should have a separate pitch bend ramp, that is added when the ramps are ticked and sent to DAC
+void tMPoly_pitchBend(tMPoly* poly, uint8_t pitchBend)
+{
+
+}
+
+void tMPoly_noteOn(tMPoly* poly, int note, uint8_t vel)
+{
+    // if not in keymap or already on stack, dont do anything. else, add that note.
+    if (tStack_contains(poly->stack, note) >= 0) return;
+    else
+    {
+        tMPoly_orderedAddToStack(poly, note);
+        tStack_add(poly->stack, note);
+        
+        oBool found = OFALSE;
+        for (int i = 0; i < poly->numVoices; i++)
+        {
+            if (poly->voices[i][0] < 0)    // if inactive voice, give this note to voice
+            {
+                found = OTRUE;
+                
+                poly->voices[i][0] = note;
+                poly->voices[i][1] = vel;
+                poly->lastVoiceToChange = i;
+                poly->notes[note][0] = vel;
+                poly->notes[note][1] = 1;
+                break;
+            }
+        }
+        
+        if (!found) //steal
+        {
+            int whichVoice = poly->lastVoiceToChange;
+            int oldNote = poly->voices[whichVoice][0];
+            poly->voices[whichVoice][0] = note;
+            poly->voices[whichVoice][1] = vel;
+            poly->notes[oldNote][1] = 0; //mark the stolen voice as inactive (in the second dimension of the notes array)
+            
+            poly->notes[note][0] = vel;
+            poly->notes[note][1] = OTRUE;
+        }
+        
+    }
+}
+
+
+int16_t noteToTest = -1;
+
+void tMPoly_noteOff(tMPoly* poly, uint8_t note)
+{
+    tStack_remove(poly->stack, note);
+    tStack_remove(poly->orderStack, note);
+    poly->notes[note][0] = 0;
+    poly->notes[note][1] = 0;
+    
+    int deactivatedVoice = -1;
+    for (int i = 0; i < poly->numVoices; i++)
+    {
+        if (poly->voices[i][0] == note)
+        {
+            poly->voices[i][0] = -1;
+            poly->voices[i][1] = 0;
+            poly->lastVoiceToChange = i;
+            deactivatedVoice = i;
+            break;
+        }
+    }
+    //monophonic handling
+    if ((poly->numVoices == 1) && (tStack_getSize(poly->stack) > 0))
+    {
+        int oldNote = tStack_first(poly->stack);
+        poly->voices[0][0] = oldNote;
+        poly->voices[0][1] = poly->notes[oldNote][0];
+        poly->lastVoiceToChange = 0;
+    }
+    
+    //grab old notes off the stack if there are notes waiting to replace the free voice
+    else if (deactivatedVoice != -1)
+    {
+        int i = 0;
+        
+        while (1)
+        {
+            noteToTest = tStack_get(poly->stack, i++);
+            if (noteToTest < 0 ) break;
+            
+            if (poly->notes[noteToTest][1] == 0) //if there is a stolen note waiting (marked inactive but on the stack)
+            {
+                poly->voices[deactivatedVoice][0] = noteToTest; //set the newly free voice to use the old stolen note
+                poly->voices[deactivatedVoice][1] = poly->notes[noteToTest][0]; // set the velocity of the voice to be the velocity of that note
+                poly->notes[noteToTest][1] = 1; //mark that it is no longer stolen and is now active
+                poly->lastVoiceToChange = deactivatedVoice; // mark the voice that was just changed as the last voice to change
+                break;
+            }
+        }
+    }
+    
+    
+}
+
+void tMPoly_orderedAddToStack(tMPoly* poly, uint8_t noteVal)
+{
+    
+    uint8_t j;
+    int myPitch, thisPitch, nextPitch;
+    
+    tStack* ns = poly->orderStack;
+    
+    int whereToInsert = 0;
+    
+    for (j = 0; j < ns->size; j++)
+    {
+        myPitch = noteVal;
+        thisPitch = ns->data[j];
+        nextPitch = ns->data[j+1];
+        
+        if (myPitch > thisPitch)
+        {
+            if ((myPitch < nextPitch) || (nextPitch == -1))
+            {
+                whereToInsert = j+1;
+                break;
+            }
+        }
+    }
+    
+    //first move notes that are already in the stack one position to the right
+    for (j = ns->size; j > whereToInsert; j--)
+    {
+        ns->data[j] = ns->data[(j - 1)];
+    }
+    
+    //then, insert the new note into the front of the stack
+    ns->data[whereToInsert] =  noteVal;
+    
+    ns->size++;
+    
+}
+
+#endif //N_MPOLY
