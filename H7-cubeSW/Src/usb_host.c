@@ -51,7 +51,8 @@
 
 #include "usb_host.h"
 #include "usbh_core.h"
-#include "usbh_audio.h"
+#include "usbh_MIDI.h"
+#include "MIDI_application.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -70,6 +71,7 @@
 /* USB Host core handle declaration */
 USBH_HandleTypeDef hUsbHostFS;
 ApplicationTypeDef Appli_state = APPLICATION_IDLE;
+extern MIDI_ApplicationTypeDef MIDI_Appli_state;
 
 /*
  * -- Insert your variables declaration here --
@@ -103,9 +105,10 @@ void MX_USB_HOST_Init(void)
   /* Init host Library, add supported class and start the library. */
   USBH_Init(&hUsbHostFS, USBH_UserProcess, HOST_FS);
 
-  USBH_RegisterClass(&hUsbHostFS, USBH_AUDIO_CLASS);
 
-  USBH_Start(&hUsbHostFS);
+	USBH_RegisterClass(&hUsbHostFS, USBH_MIDI_CLASS);
+
+USBH_Start(&hUsbHostFS);
 
   /* USER CODE BEGIN USB_HOST_Init_PostTreatment */
   
@@ -119,6 +122,8 @@ void MX_USB_HOST_Process(void)
 {
   /* USB Host Background task */
   USBH_Process(&hUsbHostFS);
+	/* Main MIDI Application */
+	MIDI_Application();
 }
 /*
  * user callback definition
@@ -128,23 +133,24 @@ static void USBH_UserProcess  (USBH_HandleTypeDef *phost, uint8_t id)
   /* USER CODE BEGIN CALL_BACK_1 */
   switch(id)
   {
-  case HOST_USER_SELECT_CONFIGURATION:
-  break;
+	case HOST_USER_SELECT_CONFIGURATION:
+		break;
 
-  case HOST_USER_DISCONNECTION:
-  Appli_state = APPLICATION_DISCONNECT;
-  break;
+	case HOST_USER_DISCONNECTION:
+		Appli_state = APPLICATION_DISCONNECT;
+		break;
 
-  case HOST_USER_CLASS_ACTIVE:
-  Appli_state = APPLICATION_READY;
-  break;
+	case HOST_USER_CLASS_ACTIVE:
+		Appli_state = APPLICATION_READY;
+		MIDI_Appli_state = MIDI_APPLICATION_READY;
+		break;
 
-  case HOST_USER_CONNECTION:
-  Appli_state = APPLICATION_START;
-  break;
+	case HOST_USER_CONNECTION:
+		Appli_state = APPLICATION_START;
+		break;
 
-  default:
-  break;
+	default:
+		break;
   }
   /* USER CODE END CALL_BACK_1 */
 }

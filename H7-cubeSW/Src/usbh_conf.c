@@ -102,7 +102,7 @@ void HAL_HCD_MspInit(HCD_HandleTypeDef* hcdHandle)
     GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF10_OTG1_FS;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
@@ -110,6 +110,10 @@ void HAL_HCD_MspInit(HCD_HandleTypeDef* hcdHandle)
     __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
 
     /* Peripheral interrupt init */
+    HAL_NVIC_SetPriority(OTG_FS_EP1_OUT_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(OTG_FS_EP1_OUT_IRQn);
+    HAL_NVIC_SetPriority(OTG_FS_EP1_IN_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(OTG_FS_EP1_IN_IRQn);
     HAL_NVIC_SetPriority(OTG_FS_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
   /* USER CODE BEGIN USB_OTG_FS_MspInit 1 */
@@ -135,6 +139,10 @@ void HAL_HCD_MspDeInit(HCD_HandleTypeDef* hcdHandle)
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11|GPIO_PIN_12);
 
     /* Peripheral interrupt Deinit*/
+    HAL_NVIC_DisableIRQ(OTG_FS_EP1_OUT_IRQn);
+
+    HAL_NVIC_DisableIRQ(OTG_FS_EP1_IN_IRQn);
+
     HAL_NVIC_DisableIRQ(OTG_FS_IRQn);
 
   /* USER CODE BEGIN USB_OTG_FS_MspDeInit 1 */
@@ -210,7 +218,7 @@ USBH_StatusTypeDef USBH_LL_Init(USBH_HandleTypeDef *phost)
   hhcd_USB_OTG_FS.Init.speed = HCD_SPEED_FULL;
   hhcd_USB_OTG_FS.Init.dma_enable = DISABLE;
   hhcd_USB_OTG_FS.Init.phy_itface = HCD_PHY_EMBEDDED;
-  hhcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
+  hhcd_USB_OTG_FS.Init.Sof_enable = ENABLE;
   if (HAL_HCD_Init(&hhcd_USB_OTG_FS) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
