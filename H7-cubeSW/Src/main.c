@@ -106,6 +106,8 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
   MPU_Conf();
+
+  SystemInit();
   /* USER CODE END 1 */
 
   /* Enable I-Cache-------------------------------------------------------------*/
@@ -133,15 +135,17 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_ADC1_Init();
-  MX_I2C2_Init();
-  MX_QUADSPI_Init();
-  MX_RNG_Init();
-  MX_SAI1_Init();
-  MX_SPI4_Init();
-  MX_I2C4_Init();
+  //MX_DMA_Init();
+  //MX_ADC1_Init();
+  //MX_I2C2_Init();
+  //MX_QUADSPI_Init();
+  //MX_RNG_Init();
+  //MX_SAI1_Init();
+  //MX_SPI4_Init();
+  //MX_I2C4_Init();
   MX_USB_HOST_Init();
+  /* Enable the USB voltage level detector */
+  HAL_PWREx_EnableUSBVoltageDetector();
   /* USER CODE BEGIN 2 */
   //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);  //LED1
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET); //LED2
@@ -154,14 +158,14 @@ int main(void)
   tempFPURegisterVal = (1<<24); // set the FTZ (flush-to-zero) bit in the FPU control register
   __set_FPSCR(tempFPURegisterVal);
 
-
+/*
 	if (HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&myADC, NUM_ADC_CHANNELS) != HAL_OK)
 	{
 		Error_Handler();
 
 	}
 	audioInit(&hi2c2, &hsai_BlockA1, &hsai_BlockB1, &hrng, ((uint16_t*)&myADC));
-	
+	*/
 	
 	
 	
@@ -214,6 +218,7 @@ void SystemClock_Config(void)
     /**Supply configuration update enable 
     */
   MODIFY_REG(PWR->CR3, PWR_CR3_SCUEN, 0);
+
 
     /**Configure the main internal regulator output voltage 
     */
@@ -281,19 +286,30 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_0;
   PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
   PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+  /* PLL3 for USB Clock */
+  PeriphClkInitStruct.PLL3.PLL3M = 25;
+  PeriphClkInitStruct.PLL3.PLL3N = 336;
+  PeriphClkInitStruct.PLL3.PLL3P = 2;
+  PeriphClkInitStruct.PLL3.PLL3Q = 7;
   PeriphClkInitStruct.QspiClockSelection = RCC_QSPICLKSOURCE_D1HCLK;
   PeriphClkInitStruct.CkperClockSelection = RCC_CLKPSOURCE_HSI;
   PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLL2;
   PeriphClkInitStruct.Spi45ClockSelection = RCC_SPI45CLKSOURCE_D2PCLK1;
   PeriphClkInitStruct.RngClockSelection = RCC_RNGCLKSOURCE_HSI48;
   PeriphClkInitStruct.I2c123ClockSelection = RCC_I2C123CLKSOURCE_D2PCLK1;
-  PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+  PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL3;
   PeriphClkInitStruct.I2c4ClockSelection = RCC_I2C4CLKSOURCE_D3PCLK1;
   PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_CLKP;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
+
+  /* Disable  PLL3. */
+ // __HAL_RCC_PLL3_DISABLE();
+
+
+
 
     /**Configure the Systick interrupt time 
     */
@@ -305,6 +321,15 @@ void SystemClock_Config(void)
 
   /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 2, 0);
+
+  /*activate CSI clock mondatory for I/O Compensation Cell*/
+  __HAL_RCC_CSI_ENABLE() ;
+
+  /* Enable SYSCFG clock mondatory for I/O Compensation Cell */
+  __HAL_RCC_SYSCFG_CLK_ENABLE() ;
+
+  /* Enables the I/O Compensation Cell */
+  HAL_EnableCompensationCell();
 }
 
 /* USER CODE BEGIN 4 */
@@ -318,10 +343,6 @@ float randomNumber(void) {
 	return num;
 }
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* AdcHandle)
-{
-	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
-}
 
 
 void MPU_Conf(void)
@@ -371,6 +392,21 @@ void MPU_Conf(void)
 
 	  HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
+
+	  /* Configure the MPU attributes as WT for SDRAM */
+	   MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+	   MPU_InitStruct.BaseAddress = 0xD0000000;
+	   MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
+	   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+	   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+	   MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+	   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+	   MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+	   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+	   MPU_InitStruct.SubRegionDisable = 0x00;
+	   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+
+	   HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
 	  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }

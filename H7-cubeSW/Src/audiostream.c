@@ -3,10 +3,10 @@
 #include "main.h"
 #include "codec.h"
 
-#define AUDIO_FRAME_SIZE     16
+#define AUDIO_FRAME_SIZE     512
 #define HALF_BUFFER_SIZE      AUDIO_FRAME_SIZE * 2 //number of samples per half of the "double-buffer" (twice the audio frame size because there are interleaved samples for both left and right channels)
 #define AUDIO_BUFFER_SIZE     AUDIO_FRAME_SIZE * 4 //number of samples in the whole data structure (four times the audio frame size because of stereo and also double-buffering/ping-ponging)
-#define NUM_SINES 			50
+#define NUM_SINES 			4
 #define INV_NUM_SINES 		1.0f/NUM_SINES
 
 // align is to make sure they are lined up with the data boundaries of the cache 
