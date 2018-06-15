@@ -1,7 +1,7 @@
 /*
  * MIDI_application.c
  *
- *  Created on: 6 déc. 2014
+ *  Created on: 6 dï¿½c. 2014
  *      Author: Xavier Halgand
  *
  *	Modified on: 9/12/16 by C.P. to handle the MIDI_IDLE state properly, and 
@@ -162,7 +162,8 @@ void ProcessReceivedMidiDatas(void)
 						case (64): // sustain
 							break;
 					}
-					HAL_GPIO_TogglePin(GPIOB,GPIO_PIN_0); //blink LED
+
+					HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_6);    //LED3
           break;
 				case (0xC0): // Program Change
 					break;

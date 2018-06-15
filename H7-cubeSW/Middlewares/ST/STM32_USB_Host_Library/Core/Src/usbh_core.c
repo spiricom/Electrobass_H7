@@ -516,10 +516,17 @@ USBH_StatusTypeDef  USBH_Process(USBH_HandleTypeDef *phost)
       
       for (idx = 0; idx < USBH_MAX_NUM_SUPPORTED_CLASS ; idx ++)
       {
-        if(phost->pClass[idx]->ClassCode == phost->device.CfgDesc.Itf_Desc[0].bInterfaceClass)
+    	  /* USER CODE BEGIN 1 */
+    	for (int j = 0; j < 5; j++)
         {
-          phost->pActiveClass = phost->pClass[idx];
+    		  /* USER CODE END 1 */
+        	if(phost->pClass[idx]->ClassCode == phost->device.CfgDesc.Itf_Desc[j].bInterfaceClass)
+        	{
+        		phost->pActiveClass = phost->pClass[idx];
+        	}
+        	/* USER CODE BEGIN 2 */
         }
+    	 /* USER CODE END 2 */
       }
       
       if(phost->pActiveClass != NULL)

@@ -611,11 +611,11 @@ HAL_StatusTypeDef USB_EPStartXfer(USB_OTG_GlobalTypeDef *USBx , USB_OTG_EPTypeDe
       {
         USBx_INEP(ep->num)->DIEPCTL |= USB_OTG_DIEPCTL_SD0PID_SEVNFRM;
       }
-    }
+    } 
     
     /* EP enable, IN data in FIFO */
     USBx_INEP(ep->num)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA);
-
+    
     if (ep->type == EP_TYPE_ISOC)
     {
       USB_WritePacket(USBx, ep->xfer_buff, ep->num, ep->xfer_len, dma);   
@@ -717,7 +717,7 @@ HAL_StatusTypeDef USB_EP0StartXfer(USB_OTG_GlobalTypeDef *USBx , USB_OTG_EPTypeD
         USBx_DEVICE->DIEPEMPMSK |= 1U << (ep->num);
       }
     }
-
+        
     /* EP enable, IN data in FIFO */
     USBx_INEP(ep->num)->DIEPCTL |= (USB_OTG_DIEPCTL_CNAK | USB_OTG_DIEPCTL_EPENA);
   }
@@ -913,6 +913,7 @@ HAL_StatusTypeDef  USB_SetDevAddress (USB_OTG_GlobalTypeDef *USBx, uint8_t addre
 HAL_StatusTypeDef  USB_DevConnect (USB_OTG_GlobalTypeDef *USBx)
 {
   USBx_DEVICE->DCTL &= ~USB_OTG_DCTL_SDIS ;
+
   HAL_Delay(3);
   
   return HAL_OK;  

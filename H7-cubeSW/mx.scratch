@@ -3,7 +3,7 @@
 <ProjectName>/Users/jeffsnyder/dev/Vocodec_H7/H7-cubeSW/\H7-cube</ProjectName>
 <ProjectNature>C</ProjectNature> 
 <CMSIS>../Drivers/CMSIS</CMSIS>
-<HAL_Driver>/Users/jeffsnyder/STM32Cube/Repository//STM32Cube_FW_H7_V1.2.0/Drivers/CMSIS</HAL_Driver>
+<HAL_Driver>/Users/jeffsnyder/STM32Cube/Repository//STM32Cube_FW_H7_V1.2.0 2/Drivers/CMSIS</HAL_Driver>
 <Toolchain>SW4STM32</Toolchain>
 <Version>0</Version>
 
