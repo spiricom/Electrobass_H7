@@ -913,7 +913,6 @@ HAL_StatusTypeDef  USB_SetDevAddress (USB_OTG_GlobalTypeDef *USBx, uint8_t addre
 HAL_StatusTypeDef  USB_DevConnect (USB_OTG_GlobalTypeDef *USBx)
 {
   USBx_DEVICE->DCTL &= ~USB_OTG_DCTL_SDIS ;
-
   HAL_Delay(3);
   
   return HAL_OK;  

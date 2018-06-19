@@ -24,8 +24,8 @@
   <config>
     <name>H7-cube</name>				
     <device>STM32H743VITx</device>		 
-    <heapSize>0x200</heapSize>
-    <stackSize>0x400</stackSize>
+    <heapSize>0x400</heapSize>
+    <stackSize>0x800</stackSize>
     
     	<board>custom</board>
 			

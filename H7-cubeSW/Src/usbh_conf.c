@@ -49,6 +49,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbh_core.h"
+#include "usbh_platform.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -96,9 +97,15 @@ void HAL_HCD_MspInit(HCD_HandleTypeDef* hcdHandle)
   /* USER CODE END USB_OTG_FS_MspInit 0 */
   
     /**USB_OTG_FS GPIO Configuration    
+    PA9     ------> USB_OTG_FS_VBUS
     PA11     ------> USB_OTG_FS_DM
     PA12     ------> USB_OTG_FS_DP 
     */
+    GPIO_InitStruct.Pin = GPIO_PIN_9;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
     GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -110,11 +117,11 @@ void HAL_HCD_MspInit(HCD_HandleTypeDef* hcdHandle)
     __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
 
     /* Peripheral interrupt init */
-    HAL_NVIC_SetPriority(OTG_FS_EP1_OUT_IRQn, 1, 0);
+    HAL_NVIC_SetPriority(OTG_FS_EP1_OUT_IRQn, 6, 0);
     HAL_NVIC_EnableIRQ(OTG_FS_EP1_OUT_IRQn);
-    HAL_NVIC_SetPriority(OTG_FS_EP1_IN_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(OTG_FS_EP1_IN_IRQn, 6, 0);
     HAL_NVIC_EnableIRQ(OTG_FS_EP1_IN_IRQn);
-    HAL_NVIC_SetPriority(OTG_FS_IRQn, 3, 0);
+    HAL_NVIC_SetPriority(OTG_FS_IRQn, 7, 0);
     HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
   /* USER CODE BEGIN USB_OTG_FS_MspInit 1 */
 
@@ -133,10 +140,11 @@ void HAL_HCD_MspDeInit(HCD_HandleTypeDef* hcdHandle)
     __HAL_RCC_USB_OTG_FS_CLK_DISABLE();
   
     /**USB_OTG_FS GPIO Configuration    
+    PA9     ------> USB_OTG_FS_VBUS
     PA11     ------> USB_OTG_FS_DM
     PA12     ------> USB_OTG_FS_DP 
     */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11|GPIO_PIN_12);
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_12);
 
     /* Peripheral interrupt Deinit*/
     HAL_NVIC_DisableIRQ(OTG_FS_EP1_OUT_IRQn);
@@ -169,7 +177,6 @@ void HAL_HCD_SOF_Callback(HCD_HandleTypeDef *hhcd)
 void HAL_HCD_Connect_Callback(HCD_HandleTypeDef *hhcd)
 {
   USBH_LL_Connect(hhcd->pData);
-
 }
 
 /**
@@ -559,30 +566,14 @@ USBH_URBStateTypeDef USBH_LL_GetURBState(USBH_HandleTypeDef *phost, uint8_t pipe
   */
 USBH_StatusTypeDef USBH_LL_DriverVBUS(USBH_HandleTypeDef *phost, uint8_t state)
 {
+  if (phost->id == HOST_FS) {
+    MX_DriverVbusFS(state);
+  }
 
   /* USER CODE BEGIN 0 */
 
   /* USER CODE END 0*/
 
-  if (phost->id == HOST_FS)
-  {
-    if (state == 0)
-    {
-      /* Drive high Charge pump */
-      /* ToDo: Add IOE driver control */
-      /* USER CODE BEGIN DRIVE_HIGH_CHARGE_FOR_FS */
-
-      /* USER CODE END DRIVE_HIGH_CHARGE_FOR_FS */
-    }
-    else
-    {
-      /* Drive low Charge pump */
-      /* ToDo: Add IOE driver control */
-      /* USER CODE BEGIN DRIVE_LOW_CHARGE_FOR_FS */
-
-      /* USER CODE END DRIVE_LOW_CHARGE_FOR_FS */
-    }
-  }
   HAL_Delay(200);
   return USBH_OK;
 }
