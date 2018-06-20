@@ -58,6 +58,8 @@
 #include "spi.h"
 #include "usb_host.h"
 #include "gpio.h"
+#include "cmsis_gcc.h"
+
 
 /* USER CODE BEGIN Includes */
 #include "audiostream.h"
@@ -143,19 +145,21 @@ int main(void)
   MX_SAI1_Init();
   MX_SPI4_Init();
   MX_I2C4_Init();
-  MX_USB_HOST_Init();
-  /* USER CODE BEGIN 2 */
+
   //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);  //LED1
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET); //LED2
   //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);    //LED3
   //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);  //LED4
 
 
+
+  MX_USB_HOST_Init();
+  /* USER CODE BEGIN 2 */
+
   // this code sets the processor to treat denormal numbers (very tiny floats) as zero to improve performance.
   uint32_t tempFPURegisterVal = __get_FPSCR();
   tempFPURegisterVal = (1<<24); // set the FTZ (flush-to-zero) bit in the FPU control register
   __set_FPSCR(tempFPURegisterVal);
-
 /*
 	if (HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&myADC, NUM_ADC_CHANNELS) != HAL_OK)
 	{
