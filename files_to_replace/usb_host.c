@@ -52,12 +52,12 @@
 #include "usb_host.h"
 #include "usbh_core.h"
 //#include "usbh_audio.h"
-
+#include "usbh_MIDI.h"
+#include "MIDI_application.h"
 
 
 /* USER CODE BEGIN Includes */
-#include "usbh_MIDI.h"
-#include "MIDI_application.h"
+
 /* USER CODE END Includes */
 
 /* USER CODE BEGIN PV */
@@ -71,6 +71,7 @@ extern MIDI_ApplicationTypeDef MIDI_Appli_state;
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
+
 /* USB Host core handle declaration */
 
 
@@ -99,21 +100,21 @@ static void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id);
   */
 void MX_USB_HOST_Init(void)
 {
-	/* USER CODE BEGIN USB_HOST_Init_PreTreatment */
+  /* USER CODE BEGIN USB_HOST_Init_PreTreatment */
+  
+  /* USER CODE END USB_HOST_Init_PreTreatment */
+  
+  /* Init host Library, add supported class and start the library. */
+  USBH_Init(&hUsbHostFS, USBH_UserProcess, HOST_FS);
 
-	/* USER CODE END USB_HOST_Init_PreTreatment */
-
-	/* Init host Library, add supported class and start the library. */
-	USBH_Init(&hUsbHostFS, USBH_UserProcess, HOST_FS);
 
 	USBH_RegisterClass(&hUsbHostFS, USBH_MIDI_CLASS);
 
+USBH_Start(&hUsbHostFS);
 
-	USBH_Start(&hUsbHostFS);
-
-	/* USER CODE BEGIN USB_HOST_Init_PostTreatment */
-	HAL_PWREx_EnableUSBVoltageDetector();
-	/* USER CODE END USB_HOST_Init_PostTreatment */
+  /* USER CODE BEGIN USB_HOST_Init_PostTreatment */
+  //HAL_PWREx_EnableUSBVoltageDetector();
+  /* USER CODE END USB_HOST_Init_PostTreatment */
 }
 
 /*
@@ -129,7 +130,6 @@ void MX_USB_HOST_Process(void)
 /*
  * user callback definition
  */
-/* USER CODE BEGIN CALL_BACK_1 */
 static void USBH_UserProcess  (USBH_HandleTypeDef *phost, uint8_t id)
 {
   switch(id)
