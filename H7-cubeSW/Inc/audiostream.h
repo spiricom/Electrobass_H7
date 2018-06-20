@@ -33,6 +33,12 @@
 
 #include "OOPS.h"
 
+#define NUM_OSC 			4
+#define INV_NUM_OSC 		1.0f/NUM_OSC
+
+#define AUDIO_FRAME_SIZE     256
+#define HALF_BUFFER_SIZE      AUDIO_FRAME_SIZE * 2 //number of samples per half of the "double-buffer" (twice the audio frame size because there are interleaved samples for both left and right channels)
+#define AUDIO_BUFFER_SIZE     AUDIO_FRAME_SIZE * 4 //number of samples in the whole data structure (four times the audio frame size because of stereo and also double-buffering/ping-ponging)
 
 
 #define NUM_BUTTONS 4
@@ -43,8 +49,10 @@ uint32_t buttonPressed[NUM_BUTTONS];
 
 extern float testFreq;
 extern uint8_t buttonAPressed;
+extern uint8_t doAudio;
 
-
+tSawtooth* osc[NUM_OSC];
+tMPoly* poly;
 
 
 /* Exported types ------------------------------------------------------------*/
@@ -119,6 +127,8 @@ extern LCDModeType lcdMode;
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTypeDef* hsaiIn, RNG_HandleTypeDef* hrandom, uint16_t* myADCArray);
+
+void audioFrame(uint16_t buffer_offset);
 
 void DMA1_TransferCpltCallback(DMA_HandleTypeDef *hdma);
 void DMA1_HalfTransferCpltCallback(DMA_HandleTypeDef *hdma);

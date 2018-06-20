@@ -236,6 +236,7 @@ USBH_StatusTypeDef  USBH_MIDI_Stop(USBH_HandleTypeDef *phost)
  * @param  phost: Host handle
  * @retval USBH Status
  */
+
 static USBH_StatusTypeDef USBH_MIDI_Process (USBH_HandleTypeDef *phost)
 {
 	USBH_StatusTypeDef status = USBH_BUSY;
@@ -253,6 +254,7 @@ static USBH_StatusTypeDef USBH_MIDI_Process (USBH_HandleTypeDef *phost)
 
 		MIDI_ProcessTransmission(phost);
 		MIDI_ProcessReception(phost);
+
 		break;
 
 	case MIDI_ERROR_STATE:
@@ -446,11 +448,14 @@ static void MIDI_ProcessTransmission(USBH_HandleTypeDef *phost)
  * @retval None
  */
 
+uint32_t usbFailCounter = 0;
+uint8_t fakeThing1 = 0;
+
 static void MIDI_ProcessReception(USBH_HandleTypeDef *phost)
 {
 	MIDI_HandleTypeDef *MIDI_Handle =  phost->pActiveClass->pData;
 	USBH_URBStateTypeDef URB_Status = USBH_URB_IDLE;
-	uint16_t length;
+	uint32_t length;
 
 	switch(MIDI_Handle->data_rx_state)
 	{
@@ -470,14 +475,19 @@ static void MIDI_ProcessReception(USBH_HandleTypeDef *phost)
 	case MIDI_RECEIVE_DATA_WAIT:
 
 		URB_Status = USBH_LL_GetURBState(phost, MIDI_Handle->InPipe);
-
+		usbFailCounter++;
+		if (usbFailCounter >= 3000)
+		{
+			fakeThing1 = 1;
+			USBH_MIDI_ReceiveCallback(phost);
+		}
 
 
 		/*Check the status done for reception*/
 		if(URB_Status == USBH_URB_DONE )
 		{
 
-
+			usbFailCounter = 0;
 			length = USBH_LL_GetLastXferSize(phost, MIDI_Handle->InPipe);
 
 			if(((MIDI_Handle->RxDataLength - length) > 0) && (length > MIDI_Handle->InEpSize))

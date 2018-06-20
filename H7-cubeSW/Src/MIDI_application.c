@@ -82,14 +82,14 @@ void ProcessReceivedMidiDatas(void)
 					key = pack.evnt1;
 					velocity = pack.evnt2;
 				
-				/*
-					tMPoly_noteOff(poly, key);
-			*/
+
+					//tMPoly_noteOff(poly, key);
+
 					break;
 				case (0x90): // Note On
 					key = pack.evnt1;
 					velocity = pack.evnt2;
-				/*
+/*
 					if (!velocity)
 					{
 						tMPoly_noteOff(poly, key);
@@ -103,8 +103,8 @@ void ProcessReceivedMidiDatas(void)
 								tSawtoothSetFreq(osc[i], OOPS_midiToFrequency(poly->voices[i][0]));
 						}
 					}
-				
-							*/
+				*/
+
 					break;
 				case (0xA0):
 					break;

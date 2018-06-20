@@ -3,11 +3,7 @@
 #include "main.h"
 #include "codec.h"
 
-#define AUDIO_FRAME_SIZE     512
-#define HALF_BUFFER_SIZE      AUDIO_FRAME_SIZE * 2 //number of samples per half of the "double-buffer" (twice the audio frame size because there are interleaved samples for both left and right channels)
-#define AUDIO_BUFFER_SIZE     AUDIO_FRAME_SIZE * 4 //number of samples in the whole data structure (four times the audio frame size because of stereo and also double-buffering/ping-ponging)
-#define NUM_SINES 			4
-#define INV_NUM_SINES 		1.0f/NUM_SINES
+
 
 // align is to make sure they are lined up with the data boundaries of the cache 
 // at(0x3....) is to put them in the D2 domain of SRAM where the DMA can access them
@@ -17,7 +13,7 @@
 ALIGN_32BYTES (int16_t audioOutBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2);
 ALIGN_32BYTES (int16_t audioInBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2);
 
-float detuneAmounts[NUM_SINES];
+float detuneAmounts[NUM_OSC];
 
 int16_t inBuffer[HALF_BUFFER_SIZE];
 int16_t outBuffer[HALF_BUFFER_SIZE];
@@ -25,6 +21,8 @@ int16_t outBuffer[HALF_BUFFER_SIZE];
 uint16_t* adcVals;
 
 uint8_t buttonAPressed = 0;
+
+uint8_t doAudio = 0;
 
 float sample = 0.0f;
 
@@ -34,12 +32,11 @@ float detuneMax = 3.0f;
 uint8_t audioInCV = 0;
 uint8_t audioInCVAlt = 0;
 
-void audioFrame(uint16_t buffer_offset);
 float audioTickL(float audioIn); 
 float audioTickR(float audioIn);
 void buttonCheck(void);
 
-tSawtooth* mySine[NUM_SINES];
+
 
 
 
@@ -61,11 +58,12 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 
 	HAL_Delay(100);
 
+	//poly = tMPoly_init();
 	adcVals = myADCArray;
-	for (int i = 0; i < NUM_SINES; i++)
+	for (int i = 0; i < NUM_OSC; i++)
 	{
-		mySine[i] = tSawtoothInit();
-		tSawtoothSetFreq(mySine[i], (randomNumber() * 2000.0f) + 40.0f);
+		osc[i] = tSawtoothInit();
+		tSawtoothSetFreq(osc[i], (randomNumber() * 2000.0f) + 40.0f);
 		detuneAmounts[i] = (randomNumber() * detuneMax) - (detuneMax * 0.5f);
 	}
 
@@ -84,13 +82,14 @@ void audioFrame(uint16_t buffer_offset)
 	uint16_t i = 0;
 	int16_t current_sample = 0;
 
-
+/*
 	frameCounter++;
 	if (frameCounter >= 1)
 	{
 		frameCounter = 0;
 		buttonCheck();
 	}
+	*/
 /*
 	for (int i = 0; i < NUMPARAMS; i++)
 	{
@@ -98,6 +97,11 @@ void audioFrame(uint16_t buffer_offset)
 		adcx[i] = adcVals[i] / 256 * INV_TWO_TO_8;
 	}
 	*/
+	for (int i = 0; i < NUM_OSC; i++)
+	{
+
+		tSawtoothSetFreq(osc[i], ((((float)adcVals[i % 4]) * INV_TWO_TO_16) * 1000.0f) + 100.0f + detuneAmounts[i]);
+	}
 	for (i = 0; i < (HALF_BUFFER_SIZE); i++)
 	{
 		if ((i & 1) == 0) {
@@ -105,7 +109,7 @@ void audioFrame(uint16_t buffer_offset)
 		}
 		else
 		{
-			current_sample = (int16_t)(audioTickR((float) (audioInBuffer[buffer_offset + i] * INV_TWO_TO_15)) * TWO_TO_15);
+			//current_sample = (int16_t)(audioTickR((float) (audioInBuffer[buffer_offset + i] * INV_TWO_TO_15)) * TWO_TO_15);
 		}
 		audioOutBuffer[buffer_offset + i] = current_sample;
 	}
@@ -124,13 +128,13 @@ float audioTickL(float audioIn)
 
 	}
 	*/
-	for (int i = 0; i < NUM_SINES; i++)
+	for (int i = 0; i < NUM_OSC; i++)
 	{
-		tSawtoothSetFreq(mySine[i], ((((float)adcVals[i % 4]) * INV_TWO_TO_16) * 1000.0f) + 100.0f + detuneAmounts[i]);
-		sample += tSawtoothTick(mySine[i]);
+
+		sample += tSawtoothTick(osc[i]);
 	}
 	//sample = audioIn;
-	sample *= INV_NUM_SINES;
+	sample *= INV_NUM_OSC;
 	return sample;
 }
 
@@ -202,16 +206,17 @@ void HAL_SAI_TxHalfCpltCallback(SAI_HandleTypeDef *hsai)
   ;
 }
 
+
 void HAL_SAI_RxCpltCallback(SAI_HandleTypeDef *hsai)
 {
-
+	//doAudio = 2;
 	audioFrame(HALF_BUFFER_SIZE);
 	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);;
 }
 
 void HAL_SAI_RxHalfCpltCallback(SAI_HandleTypeDef *hsai)
 {
-
+	//doAudio = 1;
 	audioFrame(0);
 	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET);;
 }
