@@ -28,7 +28,7 @@ float sample = 0.0f;
 
 float adcx[8];
 
-float detuneMax = 3.0f;
+float detuneMax = 6.0f;
 uint8_t audioInCV = 0;
 uint8_t audioInCVAlt = 0;
 
@@ -62,8 +62,8 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 	adcVals = myADCArray;
 	for (int i = 0; i < NUM_OSC; i++)
 	{
-		osc[i] = tSawtoothInit();
-		tSawtoothSetFreq(osc[i], (randomNumber() * 2000.0f) + 40.0f);
+		osc[i] = tCycleInit();
+		tCycleSetFreq(osc[i], (randomNumber() * 2000.0f) + 40.0f);
 		detuneAmounts[i] = (randomNumber() * detuneMax) - (detuneMax * 0.5f);
 	}
 
@@ -100,7 +100,7 @@ void audioFrame(uint16_t buffer_offset)
 	for (int i = 0; i < NUM_OSC; i++)
 	{
 
-		tSawtoothSetFreq(osc[i], ((((float)adcVals[i % 4]) * INV_TWO_TO_16) * 1000.0f) + 100.0f + detuneAmounts[i]);
+		tCycleSetFreq(osc[i], ((((float)adcVals[i % 4]) * INV_TWO_TO_16) * 1000.0f) + 100.0f + detuneAmounts[i]);
 	}
 	for (i = 0; i < (HALF_BUFFER_SIZE); i++)
 	{
@@ -130,8 +130,7 @@ float audioTickL(float audioIn)
 	*/
 	for (int i = 0; i < NUM_OSC; i++)
 	{
-
-		sample += tSawtoothTick(osc[i]);
+		sample += tCycleTick(osc[i]);
 	}
 	//sample = audioIn;
 	sample *= INV_NUM_OSC;
@@ -140,8 +139,8 @@ float audioTickL(float audioIn)
 
 float audioTickR(float audioIn) 
 {
-	rightInput = audioIn;
-	sample = audioIn;
+	//rightInput = audioIn;
+	//sample = audioIn;
 	return sample;
 }
 
