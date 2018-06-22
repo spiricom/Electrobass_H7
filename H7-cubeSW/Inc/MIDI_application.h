@@ -1,6 +1,6 @@
 /*
  * MIDI_application.h
- *  Created on: 6 déc. 2014
+ *  Created on: 6 dï¿½c. 2014
  *      Author: Xavier Halgand
  *
  *	Modified on: 9/12/16 by C.P. to handle the MIDI_IDLE state properly, and 
@@ -32,6 +32,13 @@ typedef enum
 }
 MIDI_ApplicationTypeDef;
 
+
+#define RX_BUFF_SIZE   64  /* Max Received data 64 bytes */
+
+uint8_t MIDI_RX_Buffer[RX_BUFF_SIZE]; // MIDI reception buffer
+
+
+extern uint8_t MIDIStartOfFrame;
 
 /* Exported functions ------------------------------------------------------- */
 void MIDI_Application(void);

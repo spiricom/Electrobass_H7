@@ -63,7 +63,7 @@
 
 /* USER CODE END PV */
 
-HCD_HandleTypeDef hhcd_USB_OTG_FS;
+                HCD_HandleTypeDef hhcd_USB_OTG_FS;
 void _Error_Handler(char * file, int line);
 
 /* USER CODE BEGIN 0 */
@@ -110,6 +110,10 @@ void HAL_HCD_MspInit(HCD_HandleTypeDef* hcdHandle)
     __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
 
     /* Peripheral interrupt init */
+    HAL_NVIC_SetPriority(OTG_FS_EP1_OUT_IRQn, 6, 0);
+    HAL_NVIC_EnableIRQ(OTG_FS_EP1_OUT_IRQn);
+    HAL_NVIC_SetPriority(OTG_FS_EP1_IN_IRQn, 6, 0);
+    HAL_NVIC_EnableIRQ(OTG_FS_EP1_IN_IRQn);
     HAL_NVIC_SetPriority(OTG_FS_IRQn, 6, 0);
     HAL_NVIC_EnableIRQ(OTG_FS_IRQn);
   /* USER CODE BEGIN USB_OTG_FS_MspInit 1 */
@@ -135,6 +139,10 @@ void HAL_HCD_MspDeInit(HCD_HandleTypeDef* hcdHandle)
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11|GPIO_PIN_12);
 
     /* Peripheral interrupt Deinit*/
+    HAL_NVIC_DisableIRQ(OTG_FS_EP1_OUT_IRQn);
+
+    HAL_NVIC_DisableIRQ(OTG_FS_EP1_IN_IRQn);
+
     HAL_NVIC_DisableIRQ(OTG_FS_IRQn);
 
   /* USER CODE BEGIN USB_OTG_FS_MspDeInit 1 */

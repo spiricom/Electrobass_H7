@@ -33,10 +33,10 @@
 
 #include "OOPS.h"
 
-#define NUM_OSC 			32
+#define NUM_OSC 			72
 #define INV_NUM_OSC 		1.0f/NUM_OSC
 
-#define AUDIO_FRAME_SIZE     64
+#define AUDIO_FRAME_SIZE     128
 #define HALF_BUFFER_SIZE      AUDIO_FRAME_SIZE * 2 //number of samples per half of the "double-buffer" (twice the audio frame size because there are interleaved samples for both left and right channels)
 #define AUDIO_BUFFER_SIZE     AUDIO_FRAME_SIZE * 4 //number of samples in the whole data structure (four times the audio frame size because of stereo and also double-buffering/ping-ponging)
 
@@ -50,7 +50,8 @@ uint32_t buttonPressed[NUM_BUTTONS];
 extern float testFreq;
 extern uint8_t buttonAPressed;
 extern uint8_t doAudio;
-
+extern float detuneAmounts[NUM_OSC];
+extern float myVol;
 tCycle* osc[NUM_OSC];
 tMPoly* poly;
 

@@ -57,6 +57,8 @@ typedef enum oBool
 
 #define SOS_M 						343.0f
 
+#define TWO_TO_7					128.f
+#define INV_TWO_TO_7				0.0078125f
 #define TWO_TO_8 					256.f
 #define INV_TWO_TO_8 			0.00390625f
 #define TWO_TO_5 					32.0f

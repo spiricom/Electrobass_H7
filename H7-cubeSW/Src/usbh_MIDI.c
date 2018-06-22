@@ -31,7 +31,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbh_MIDI.h"
-
+#include "MIDI_Application.h"
 /*------------------------------------------------------------------------------------------------------------------------------*/
 
 
@@ -284,7 +284,9 @@ static USBH_StatusTypeDef USBH_MIDI_Process (USBH_HandleTypeDef *phost)
   */
 static USBH_StatusTypeDef USBH_MIDI_SOFProcess (USBH_HandleTypeDef *phost)
 {
-  return USBH_OK;  
+	USBH_MIDI_Receive(phost, MIDI_RX_Buffer, RX_BUFF_SIZE);
+	MIDIStartOfFrame = 1;
+	return USBH_OK;
 }
   
 /*------------------------------------------------------------------------------------------------------------------------------*/
@@ -341,6 +343,7 @@ USBH_StatusTypeDef  USBH_MIDI_Transmit(USBH_HandleTypeDef *phost, uint8_t *pbuff
  * @param  None
  * @retval None
  */
+uint8_t tempArray[32];
 USBH_StatusTypeDef  USBH_MIDI_Receive(USBH_HandleTypeDef *phost, uint8_t *pbuff, uint16_t length)
 {
 	USBH_StatusTypeDef Status = USBH_BUSY;
@@ -475,13 +478,6 @@ static void MIDI_ProcessReception(USBH_HandleTypeDef *phost)
 	case MIDI_RECEIVE_DATA_WAIT:
 
 		URB_Status = USBH_LL_GetURBState(phost, MIDI_Handle->InPipe);
-		usbFailCounter++;
-		if (usbFailCounter >= 3000)
-		{
-			fakeThing1 = 1;
-			USBH_MIDI_ReceiveCallback(phost);
-		}
-
 
 		/*Check the status done for reception*/
 		if(URB_Status == USBH_URB_DONE )

@@ -138,11 +138,11 @@ int main(void)
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_I2C2_Init();
-  //MX_QUADSPI_Init();
+  MX_QUADSPI_Init();
   MX_RNG_Init();
   MX_SAI1_Init();
-  //MX_SPI4_Init();
-  //MX_I2C4_Init();
+  MX_SPI4_Init();
+  MX_I2C4_Init();
   MX_USB_HOST_Init();
   /* USER CODE BEGIN 2 */
 
@@ -311,7 +311,7 @@ void SystemClock_Config(void)
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
 
   /* SysTick_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(SysTick_IRQn, 2, 0);
+  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
 /* USER CODE BEGIN 4 */

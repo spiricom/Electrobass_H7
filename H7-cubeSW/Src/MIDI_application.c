@@ -21,15 +21,14 @@ MIDI_ApplicationTypeDef MIDI_Appli_state = MIDI_APPLICATION_READY;
 extern ApplicationTypeDef Appli_state;
 extern USBH_HandleTypeDef hUsbHostFS;
 
+uint8_t gottaProcessMIDI = 0;
 uint8_t key, velocity, ctrl, data;
 
 uint8_t paramvalue[256], firstkey, h;
-
+uint8_t MIDIStartOfFrame = 0;
 /* Private define ------------------------------------------------------------*/
 
-#define RX_BUFF_SIZE   64  /* Max Received data 64 bytes */
 
-uint8_t MIDI_RX_Buffer[RX_BUFF_SIZE]; // MIDI reception buffer
 
 /* Private function prototypes -----------------------------------------------*/
 void ProcessReceivedMidiDatas(void);
@@ -44,8 +43,19 @@ void MIDI_Application(void)
 {
 	if(Appli_state == APPLICATION_READY)
 	{
+		if (MIDI_Appli_state == MIDI_APPLICATION_RUNNING)
+		{
+			//USBH_MIDI_Receive(&hUsbHostFS, MIDI_RX_Buffer, RX_BUFF_SIZE); // just once at the beginning, start the first reception
+			if (gottaProcessMIDI)
+			{
+				//ProcessReceivedMidiDatas();
+				//USBH_MIDI_Receive(&hUsbHostFS, MIDI_RX_Buffer, RX_BUFF_SIZE);
+			}
+		}
+
 		if(MIDI_Appli_state == MIDI_APPLICATION_READY)
 		{
+
 			USBH_MIDI_Receive(&hUsbHostFS, MIDI_RX_Buffer, RX_BUFF_SIZE); // just once at the beginning, start the first reception
 			MIDI_Appli_state = MIDI_APPLICATION_RUNNING;
 		}
@@ -82,28 +92,31 @@ void ProcessReceivedMidiDatas(void)
 					key = pack.evnt1;
 					velocity = pack.evnt2;
 				
-
+					myVol = 0.0f;
 					//tMPoly_noteOff(poly, key);
 
 					break;
 				case (0x90): // Note On
 					key = pack.evnt1;
 					velocity = pack.evnt2;
-/*
+
 					if (!velocity)
 					{
-						tMPoly_noteOff(poly, key);
+						myVol = 0.0f;
+						//tMPoly_noteOff(poly, key);
 					}
 					else
 					{
+						myVol = 1.0f;
+						/*
 						tMPoly_noteOn(poly, key, velocity);
     
 						for (int i = 0; i < NUM_VOICES; i++)
 						{
 								tSawtoothSetFreq(osc[i], OOPS_midiToFrequency(poly->voices[i][0]));
-						}
+						}*/
 					}
-				*/
+
 
 					break;
 				case (0xA0):
@@ -113,14 +126,29 @@ void ProcessReceivedMidiDatas(void)
 					data = pack.evnt2;
 					switch(ctrl)
 					{
-						case (0x01):
-
+						case (0x00):
+							for (int i = 0; i < 8; i++)
+							{
+								tCycleSetFreq(osc[i], ((((float)data) * INV_TWO_TO_7) * 1000.0f) + 100.0f + detuneAmounts[i]);
+							}
 							break;
-						case (0x0A):
+						case (0x01):
+									for (int i = 8; i < 16; i++)
+									{
+										tCycleSetFreq(osc[i], ((((float)data) * INV_TWO_TO_7) * 1000.0f) + 100.0f + detuneAmounts[i]);
+									}
 							break;
 						case (0x02):
+									for (int i = 16; i < 24; i++)
+									{
+										tCycleSetFreq(osc[i], ((((float)data) * INV_TWO_TO_7) * 1000.0f) + 100.0f + detuneAmounts[i]);
+									}
 							break;
-						case (0x0C):
+						case (0x03):
+									for (int i = 24; i < 32; i++)
+									{
+										tCycleSetFreq(osc[i], ((((float)data) * INV_TWO_TO_7) * 1000.0f) + 100.0f + detuneAmounts[i]);
+									}
 							break;
 						case (0x0D):
 							break;
@@ -177,6 +205,7 @@ void ProcessReceivedMidiDatas(void)
 					break;
 			}
 		}
+		gottaProcessMIDI = 0;
 	}
 }
 
@@ -266,6 +295,7 @@ void LocalMidiHandler(uint8_t param, uint8_t data)
  */
 void USBH_MIDI_ReceiveCallback(USBH_HandleTypeDef *phost)
 {
+	//gottaProcessMIDI = 1;
 	ProcessReceivedMidiDatas();
 	USBH_MIDI_Receive(&hUsbHostFS, MIDI_RX_Buffer, RX_BUFF_SIZE); // start a new reception
 }

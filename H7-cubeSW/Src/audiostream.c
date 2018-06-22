@@ -28,9 +28,10 @@ float sample = 0.0f;
 
 float adcx[8];
 
-float detuneMax = 6.0f;
+float detuneMax = 16.0f;
 uint8_t audioInCV = 0;
 uint8_t audioInCVAlt = 0;
+float myVol = 0.0f;
 
 float audioTickL(float audioIn); 
 float audioTickR(float audioIn);
@@ -97,11 +98,7 @@ void audioFrame(uint16_t buffer_offset)
 		adcx[i] = adcVals[i] / 256 * INV_TWO_TO_8;
 	}
 	*/
-	for (int i = 0; i < NUM_OSC; i++)
-	{
 
-		tCycleSetFreq(osc[i], ((((float)adcVals[i % 4]) * INV_TWO_TO_16) * 1000.0f) + 100.0f + detuneAmounts[i]);
-	}
 	for (i = 0; i < (HALF_BUFFER_SIZE); i++)
 	{
 		if ((i & 1) == 0) {
@@ -134,6 +131,7 @@ float audioTickL(float audioIn)
 	}
 	//sample = audioIn;
 	sample *= INV_NUM_OSC;
+	sample *= myVol;
 	return sample;
 }
 

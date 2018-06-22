@@ -62,10 +62,8 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
-ALIGN_32BYTES (USBH_HandleTypeDef hUsbHostFS __ATTR_RAM_D2);
+USBH_HandleTypeDef hUsbHostFS;
 ApplicationTypeDef Appli_state = APPLICATION_IDLE;
-
 extern MIDI_ApplicationTypeDef MIDI_Appli_state;
 /* USER CODE END PV */
 
@@ -115,7 +113,7 @@ void MX_USB_HOST_Init(void)
 USBH_Start(&hUsbHostFS);
 
   /* USER CODE BEGIN USB_HOST_Init_PostTreatment */
-  //HAL_PWREx_EnableUSBVoltageDetector();
+  HAL_PWREx_EnableUSBVoltageDetector();
   /* USER CODE END USB_HOST_Init_PostTreatment */
 }
 
