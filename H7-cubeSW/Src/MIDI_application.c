@@ -126,25 +126,25 @@ void ProcessReceivedMidiDatas(void)
 					data = pack.evnt2;
 					switch(ctrl)
 					{
-						case (0x00):
+						case (0x01):
 							for (int i = 0; i < 8; i++)
 							{
 								tCycleSetFreq(osc[i], ((((float)data) * INV_TWO_TO_7) * 1000.0f) + 100.0f + detuneAmounts[i]);
 							}
 							break;
-						case (0x01):
+						case (0x02):
 									for (int i = 8; i < 16; i++)
 									{
 										tCycleSetFreq(osc[i], ((((float)data) * INV_TWO_TO_7) * 1000.0f) + 100.0f + detuneAmounts[i]);
 									}
 							break;
-						case (0x02):
+						case (0x03):
 									for (int i = 16; i < 24; i++)
 									{
 										tCycleSetFreq(osc[i], ((((float)data) * INV_TWO_TO_7) * 1000.0f) + 100.0f + detuneAmounts[i]);
 									}
 							break;
-						case (0x03):
+						case (0x04):
 									for (int i = 24; i < 32; i++)
 									{
 										tCycleSetFreq(osc[i], ((((float)data) * INV_TWO_TO_7) * 1000.0f) + 100.0f + detuneAmounts[i]);
