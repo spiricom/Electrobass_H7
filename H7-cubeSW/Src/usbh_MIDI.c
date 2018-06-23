@@ -284,7 +284,7 @@ static USBH_StatusTypeDef USBH_MIDI_Process (USBH_HandleTypeDef *phost)
   */
 static USBH_StatusTypeDef USBH_MIDI_SOFProcess (USBH_HandleTypeDef *phost)
 {
-	USBH_MIDI_Receive(phost, MIDI_RX_Buffer, RX_BUFF_SIZE);
+	//USBH_MIDI_Receive(phost, MIDI_RX_Buffer, RX_BUFF_SIZE);
 	MIDIStartOfFrame = 1;
 	return USBH_OK;
 }
