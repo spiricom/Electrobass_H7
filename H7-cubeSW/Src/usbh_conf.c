@@ -63,7 +63,7 @@
 
 /* USER CODE END PV */
 
-                HCD_HandleTypeDef hhcd_USB_OTG_FS;
+                HCD_HandleTypeDef hhcd_USB_OTG_FS __ATTR_RAM_D2;
 void _Error_Handler(char * file, int line);
 
 /* USER CODE BEGIN 0 */
@@ -221,7 +221,7 @@ USBH_StatusTypeDef USBH_LL_Init(USBH_HandleTypeDef *phost)
   hhcd_USB_OTG_FS.Instance = USB_OTG_FS;
   hhcd_USB_OTG_FS.Init.Host_channels = 11;
   hhcd_USB_OTG_FS.Init.speed = HCD_SPEED_FULL;
-  hhcd_USB_OTG_FS.Init.dma_enable = DISABLE;
+  hhcd_USB_OTG_FS.Init.dma_enable = ENABLE;
   hhcd_USB_OTG_FS.Init.phy_itface = HCD_PHY_EMBEDDED;
   hhcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
   if (HAL_HCD_Init(&hhcd_USB_OTG_FS) != HAL_OK)

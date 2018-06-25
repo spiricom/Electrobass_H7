@@ -353,7 +353,7 @@ void MPU_Conf(void)
 
 	  //AN4838
 	  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-	  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+	  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
 	  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 	  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
 
