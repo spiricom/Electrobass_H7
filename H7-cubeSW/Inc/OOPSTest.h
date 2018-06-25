@@ -9,8 +9,3 @@
 */
 
 #include "OOPS.h"
-
-extern tTalkbox* tb;
-
-extern tCycle* sine;
-

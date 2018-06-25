@@ -59,14 +59,15 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 
 	HAL_Delay(100);
 
-	//poly = tMPoly_init();
+	poly = tPolyphonicHandlerInit();
 	adcVals = myADCArray;
 	for (int i = 0; i < NUM_OSC; i++)
 	{
-		osc[i] = tCycleInit();
-		tCycleSetFreq(osc[i], (randomNumber() * 2000.0f) + 40.0f);
+		osc[i] = tSawtoothInit();
+		tSawtoothSetFreq(osc[i], (randomNumber() * 2000.0f) + 40.0f);
 		detuneAmounts[i] = (randomNumber() * detuneMax) - (detuneMax * 0.5f);
 	}
+	vocoder = tTalkboxInit();
 
 	// set up the I2S driver to send audio data to the codec (and retrieve input as well)	
 	transmit_status = HAL_SAI_Transmit_DMA(hsaiOut, (uint8_t *)&audioOutBuffer[0], AUDIO_BUFFER_SIZE);
@@ -82,7 +83,7 @@ void audioFrame(uint16_t buffer_offset)
 {
 	uint16_t i = 0;
 	int16_t current_sample = 0;
-
+	//tSawtoothSetFreq(osc[i], 100.0f);
 /*
 	frameCounter++;
 	if (frameCounter >= 1)
@@ -118,6 +119,7 @@ float rightInput = 0.0f;
 
 float audioTickL(float audioIn) 
 {
+	sample = 0.0f;
 	/*
 	for (int i = 0; i < 4; i++)
 	{
@@ -125,21 +127,31 @@ float audioTickL(float audioIn)
 
 	}
 	*/
+
 	for (int i = 0; i < NUM_OSC; i++)
 	{
-		sample += tCycleTick(osc[i]);
+		if (tPolyphonicHandlerGetMidiNote(poly, i)->on == OTRUE)
+		{
+			sample += tSawtoothTick(osc[i]);
+		}
 	}
+
+	//sample = tSawtoothTick(osc[0]);
 	//sample = audioIn;
-	sample *= INV_NUM_OSC;
-	sample *= myVol;
+	sample *= .25f;
+
+	sample = tTalkboxTick(vocoder, sample, audioIn);
+	sample = OOPS_softClip(sample, 0.98f);
+	//sample *= myVol;
+	//sample = audioIn;
 	return sample;
 }
 
 float audioTickR(float audioIn) 
 {
-	//rightInput = audioIn;
+	rightInput = audioIn;
 	//sample = audioIn;
-	return sample;
+	return audioIn;
 }
 
 void buttonCheck(void)

@@ -140,6 +140,7 @@ static void USBH_UserProcess  (USBH_HandleTypeDef *phost, uint8_t id)
 	case HOST_USER_DISCONNECTION:
 		Appli_state = APPLICATION_DISCONNECT;
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);  //LED4
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);  //LED1
 		break;
 
 	case HOST_USER_CLASS_ACTIVE:
@@ -150,6 +151,7 @@ static void USBH_UserProcess  (USBH_HandleTypeDef *phost, uint8_t id)
 
 	case HOST_USER_CONNECTION:
 		Appli_state = APPLICATION_START;
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);  //LED4
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);  //LED1
 		break;
 

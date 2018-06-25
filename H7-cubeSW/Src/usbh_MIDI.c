@@ -251,13 +251,11 @@ static USBH_StatusTypeDef USBH_MIDI_Process (USBH_HandleTypeDef *phost)
 		break;
 
 	case MIDI_TRANSFER_DATA:
-		if (transferCounter++ > 10)
-		{
-			MIDI_ProcessTransmission(phost);
 
-			MIDI_ProcessReception(phost);
-			transferCounter = 0;
-		}
+		MIDI_ProcessTransmission(phost);
+
+		MIDI_ProcessReception(phost);
+
 		status = USBH_OK;
 		break;
 
@@ -288,8 +286,6 @@ static USBH_StatusTypeDef USBH_MIDI_Process (USBH_HandleTypeDef *phost)
   */
 static USBH_StatusTypeDef USBH_MIDI_SOFProcess (USBH_HandleTypeDef *phost)
 {
-	//USBH_MIDI_Receive(phost, MIDI_RX_Buffer, RX_BUFF_SIZE);
-	MIDIStartOfFrame = 1;
 	return USBH_OK;
 }
   
@@ -502,25 +498,15 @@ static void MIDI_ProcessReception(USBH_HandleTypeDef *phost)
 				MIDI_Handle->pRxData += length;
 				MIDI_Handle->data_rx_state = MIDI_RECEIVE_DATA;
 			}
-			else if (length > 0)
-			{
-				callbackCounter++;
-				MIDI_Handle->data_rx_state = MIDI_IDLE;
-				USBH_MIDI_ReceiveCallback(phost, length);
-
-			}
 			else
 			{
-				callbackFailCounter++;
-				usbFailCounter++;
+				MIDI_Handle->data_rx_state = MIDI_IDLE;
+				USBH_MIDI_ReceiveCallback(phost, length);
 			}
+
 #if (USBH_USE_OS == 1)
 			osMessagePut ( phost->os_event, USBH_CLASS_EVENT, 0);
 #endif
-		}
-		if(URB_Status == USBH_URB_IDLE )
-		{
-			usbFailCounter++;
 		}
 		break;
 

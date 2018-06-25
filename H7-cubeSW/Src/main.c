@@ -73,7 +73,7 @@
 
 //FPU->CPACR |= (1<<24);
 
-#define SAMPLERATE96K
+//#define SAMPLERATE96K
 
 #define NUM_ADC_CHANNELS 5
 ALIGN_32BYTES (uint16_t myADC[NUM_ADC_CHANNELS] __ATTR_RAM_D2);
@@ -354,7 +354,7 @@ void MPU_Conf(void)
 	  //AN4838
 	  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
 	  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-	  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+	  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
 	  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
 
 	  //Shared Device
