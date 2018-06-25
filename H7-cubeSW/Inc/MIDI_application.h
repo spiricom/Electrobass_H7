@@ -43,6 +43,7 @@ extern uint8_t MIDIStartOfFrame;
 /* Exported functions ------------------------------------------------------- */
 void MIDI_Application(void);
 void LocalMidiHandler(uint8_t param, uint8_t data);
+void ProcessReceivedMidiDatas(uint32_t myLength);
 
 /*------------------------------------------------------------------------------*/
 #endif /* MIDI_APPLICATION_H_ */

@@ -31,7 +31,9 @@ uint8_t MIDIStartOfFrame = 0;
 
 
 /* Private function prototypes -----------------------------------------------*/
-void ProcessReceivedMidiDatas(void);
+
+
+
 
 /*-----------------------------------------------------------------------------*/
 /**
@@ -68,13 +70,13 @@ void MIDI_Application(void)
 }
 
 /*-----------------------------------------------------------------------------*/
-void ProcessReceivedMidiDatas(void)
+void ProcessReceivedMidiDatas(uint32_t myLength)
 {
 	uint16_t numberOfPackets;
 	uint8_t *ptr = MIDI_RX_Buffer;
 	midi_package_t pack;
 
-	numberOfPackets = USBH_MIDI_GetLastReceivedDataSize(&hUsbHostFS) >> 2; //each USB midi package is 4 bytes long
+	numberOfPackets = myLength >> 2; //each USB midi package is 4 bytes long
 	
 	if (numberOfPackets != 0) 
 	{
@@ -293,10 +295,10 @@ void LocalMidiHandler(uint8_t param, uint8_t data)
  * @param  phost: Host handle
  * @retval None
  */
-void USBH_MIDI_ReceiveCallback(USBH_HandleTypeDef *phost)
+void USBH_MIDI_ReceiveCallback(USBH_HandleTypeDef *phost, uint32_t myLength)
 {
 	//gottaProcessMIDI = 1;
-	ProcessReceivedMidiDatas();
+	ProcessReceivedMidiDatas(myLength);
 	USBH_MIDI_Receive(&hUsbHostFS, MIDI_RX_Buffer, RX_BUFF_SIZE); // start a new reception
 }
 

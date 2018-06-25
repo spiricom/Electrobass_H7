@@ -799,11 +799,14 @@ uint32_t HAL_HCD_GetCurrentSpeed(HCD_HandleTypeDef *hhcd)
   *         This parameter can be a value from 1 to 15
   * @retval none
   */
+uint32_t HCD_IRQ_Counter = 0;
+uint32_t hc_counter = 0;
 static void HCD_HC_IN_IRQHandler   (HCD_HandleTypeDef *hhcd, uint8_t chnum)
 {
   USB_OTG_GlobalTypeDef *USBx = hhcd->Instance;
   uint32_t tmpreg = 0;
     
+  HCD_IRQ_Counter++;
   if ((USBx_HC(chnum)->HCINT) &  USB_OTG_HCINT_AHBERR)
   {
     __HAL_HCD_CLEAR_HC_INT(chnum, USB_OTG_HCINT_AHBERR);
@@ -878,6 +881,12 @@ static void HCD_HC_IN_IRQHandler   (HCD_HandleTypeDef *hhcd, uint8_t chnum)
       hhcd->hc[chnum].urb_state  = URB_DONE;      
     }
     
+    //garbage
+    if (hhcd->hc[3].state == HC_NAK)
+    {
+    	hc_counter++;
+    }
+    //end garbage
     else if (hhcd->hc[chnum].state == HC_STALL) 
     {
       hhcd->hc[chnum].urb_state  = URB_STALL;

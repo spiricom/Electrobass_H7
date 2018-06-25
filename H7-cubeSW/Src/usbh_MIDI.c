@@ -236,7 +236,7 @@ USBH_StatusTypeDef  USBH_MIDI_Stop(USBH_HandleTypeDef *phost)
  * @param  phost: Host handle
  * @retval USBH Status
  */
-
+uint32_t transferCounter = 0;
 static USBH_StatusTypeDef USBH_MIDI_Process (USBH_HandleTypeDef *phost)
 {
 	USBH_StatusTypeDef status = USBH_BUSY;
@@ -251,10 +251,14 @@ static USBH_StatusTypeDef USBH_MIDI_Process (USBH_HandleTypeDef *phost)
 		break;
 
 	case MIDI_TRANSFER_DATA:
+		if (transferCounter++ > 10)
+		{
+			MIDI_ProcessTransmission(phost);
 
-		MIDI_ProcessTransmission(phost);
-		MIDI_ProcessReception(phost);
-
+			MIDI_ProcessReception(phost);
+			transferCounter = 0;
+		}
+		status = USBH_OK;
 		break;
 
 	case MIDI_ERROR_STATE:
@@ -296,7 +300,7 @@ static USBH_StatusTypeDef USBH_MIDI_SOFProcess (USBH_HandleTypeDef *phost)
  * @param  None
  * @retval None
  */
-uint16_t USBH_MIDI_GetLastReceivedDataSize(USBH_HandleTypeDef *phost)
+uint32_t USBH_MIDI_GetLastReceivedDataSize(USBH_HandleTypeDef *phost)
 {
 	MIDI_HandleTypeDef *MIDI_Handle =  phost->pActiveClass->pData;
 
@@ -453,7 +457,10 @@ static void MIDI_ProcessTransmission(USBH_HandleTypeDef *phost)
 
 uint32_t usbFailCounter = 0;
 uint8_t fakeThing1 = 0;
-
+uint32_t callbackCounter = 0;
+uint32_t callbackFailCounter = 0;
+uint8_t prevTestData[8] = {0};
+uint8_t doTheThing = 0;
 static void MIDI_ProcessReception(USBH_HandleTypeDef *phost)
 {
 	MIDI_HandleTypeDef *MIDI_Handle =  phost->pActiveClass->pData;
@@ -465,12 +472,15 @@ static void MIDI_ProcessReception(USBH_HandleTypeDef *phost)
 
 	case MIDI_RECEIVE_DATA:
 
+		//should this happen first? use to be after the receive data command was issued
+		MIDI_Handle->data_rx_state = MIDI_RECEIVE_DATA_WAIT;
+		//
 		USBH_BulkReceiveData (phost,
 				MIDI_Handle->pRxData,
 				MIDI_Handle->InEpSize,
 				MIDI_Handle->InPipe);
 
-		MIDI_Handle->data_rx_state = MIDI_RECEIVE_DATA_WAIT;
+
 		//BSP_LED_On(LED_Red); //ok only here
 
 		break;
@@ -480,7 +490,7 @@ static void MIDI_ProcessReception(USBH_HandleTypeDef *phost)
 		URB_Status = USBH_LL_GetURBState(phost, MIDI_Handle->InPipe);
 
 		/*Check the status done for reception*/
-		if(URB_Status == USBH_URB_DONE )
+		if((URB_Status == USBH_URB_DONE ) )
 		{
 
 			usbFailCounter = 0;
@@ -492,14 +502,25 @@ static void MIDI_ProcessReception(USBH_HandleTypeDef *phost)
 				MIDI_Handle->pRxData += length;
 				MIDI_Handle->data_rx_state = MIDI_RECEIVE_DATA;
 			}
+			else if (length > 0)
+			{
+				callbackCounter++;
+				MIDI_Handle->data_rx_state = MIDI_IDLE;
+				USBH_MIDI_ReceiveCallback(phost, length);
+
+			}
 			else
 			{
-				MIDI_Handle->data_rx_state = MIDI_IDLE;
-				USBH_MIDI_ReceiveCallback(phost);
+				callbackFailCounter++;
+				usbFailCounter++;
 			}
 #if (USBH_USE_OS == 1)
 			osMessagePut ( phost->os_event, USBH_CLASS_EVENT, 0);
 #endif
+		}
+		if(URB_Status == USBH_URB_IDLE )
+		{
+			usbFailCounter++;
 		}
 		break;
 
@@ -527,7 +548,7 @@ __weak void USBH_MIDI_TransmitCallback(USBH_HandleTypeDef *phost)
  * @brief  The function informs user that data have been received.
  * @retval None
  */
-__weak void USBH_MIDI_ReceiveCallback(USBH_HandleTypeDef *phost)
+__weak void USBH_MIDI_ReceiveCallback(USBH_HandleTypeDef *phost, uint32_t myLength)
 {
 
 }
