@@ -58,6 +58,7 @@ void tTalkboxUpdate(tTalkbox* const v) ///update internal parameters...
     if(n != v->N) //recalc hanning window
     {
         v->N = n;
+        v->halfN = n / 2; //added to avoid repeated divide in tick function, since N is only set in update function -JS
         float dp = TWO_PI / v->N;
         float p = 0.0f;
         for(n=0; n<v->N; n++)
@@ -125,13 +126,18 @@ void tTalkboxLpc(float *buf, float *car, int32_t n, int32_t o)
     }
 }
 
+float fastSqrtf(float f)
+{
+    const uint32_t result = 0x1fbb4000 + (*(uint32_t*)&f >> 1);
+    return *(float*)&result;
+}
 
 void tTalkboxLpcDurbin(float *r, int p, float *k, float *g)
 {
     int i, j;
     float a[ORD_MAX], at[ORD_MAX], e=r[0];
     
-    for(i=0; i<=p; i++) a[i] = at[i] = 0.0f; //probably don't need to clear at[] or k[]
+    //for(i=0; i<=p; i++) a[i] = at[i] = 0.0f; //probably don't need to clear at[] or k[]
     
     for(i=1; i<=p; i++)
     {
@@ -152,13 +158,13 @@ void tTalkboxLpcDurbin(float *r, int p, float *k, float *g)
     }
     
     if(e < 1.0e-20f) e = 0.0f;
-    *g = sqrtf(e);
+    *g = fastSqrtf(e);
 }
 
 float tTalkboxTick(tTalkbox* const v, float synth, float voice)
 {
 
-    int32_t  p0=v->pos, p1 = (v->pos + v->N/2) % v->N;
+    int32_t  p0=v->pos, p1 = (v->pos + v->halfN) % v->N;
     float e=v->emphasis, w, o, x, dr, fx=v->FX;
     float p, q, h0=0.3f, h1=0.77f;
     
@@ -290,12 +296,12 @@ void        tVocoderUpdate      (tVocoder* const v)
     }
     else
     {
-        v->f[0][12] = (float)pow(10.0, -1.7 - 2.7f * v->param[4]); //envelope speed
+        v->f[0][12] = (float)pow(10.0, -1.7f - 2.7f * v->param[4]); //envelope speed
         
         rr = 0.022f / (float)v->nbnd; //minimum proportional to frequency to stop distortion
         for(i=1;i<v->nbnd;i++)
         {
-            v->f[i][12] = (float)(0.025 - rr * (double)i);
+            v->f[i][12] = (float)(0.025f - rr * (double)i);
             if(v->f[0][12] < v->f[i][12]) v->f[i][12] = v->f[0][12];
         }
         v->f[0][12] = 0.5f * v->f[0][12]; //only top band is at full rate
@@ -307,13 +313,13 @@ void        tVocoderUpdate      (tVocoder* const v)
     for(i=1;i<v->nbnd;i++)
     {
         v->f[i][2] *= sh;
-        th = acos((2.0 * rr * cos(tpofs * v->f[i][2])) / (1.0 + rr * rr));
-        v->f[i][0] = (float)(2.0 * rr * cos(th)); //a0
+        th = acos((2.0f * rr * cos(tpofs * v->f[i][2])) / (1.0f + rr * rr));
+        v->f[i][0] = (float)(2.0f * rr * cos(th)); //a0
         v->f[i][1] = (float)(-rr * rr);           //a1
         //was .98
         v->f[i][2] *= 0.96f; //shift 2nd stage slightly to stop high resonance peaks
-        th = acos((2.0 * rr * cos(tpofs * v->f[i][2])) / (1.0 + rr * rr));
-        v->f[i][2] = (float)(2.0 * rr * cos(th));
+        th = acos((2.0f * rr * cos(tpofs * v->f[i][2])) / (1.0f + rr * rr));
+        v->f[i][2] = (float)(2.0f * rr * cos(th));
     }
 }
 

@@ -10,8 +10,8 @@
 // (otherwise the TX times out because the DMA can't see the data location) -JS
 
 
-ALIGN_32BYTES (int16_t audioOutBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2);
-ALIGN_32BYTES (int16_t audioInBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2);
+int16_t audioOutBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2;
+int16_t audioInBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2;
 
 float detuneAmounts[NUM_OSC];
 

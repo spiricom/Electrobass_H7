@@ -480,6 +480,7 @@ typedef struct _tTalkbox
     
     float emphasis;
     int32_t K, N, O, pos;
+    int32_t halfN; //added to avoid dividing N by 2 every tick, since N is only updated in the update function -JS
     float wet, dry, FX;
     float d0, d1, d2, d3, d4;
     float u0, u1, u2, u3, u4;
@@ -510,7 +511,47 @@ typedef struct _tPolyphonicHandler
     tMidiNode* offListFirst;
     
 } tPolyphonicHandler;
+#define STACK_SIZE 128
+#define NUM_VOICES 4
 
+typedef struct _tStack
+{
+    int data[STACK_SIZE];
+    uint16_t pos;
+    uint16_t size;
+    uint16_t capacity;
+    oBool ordered;
+
+} tStack;
+
+
+/* tMPoly */
+typedef struct _tMPoly
+{
+    int numVoices;
+    int numVoicesActive;
+
+    int voices[NUM_VOICES][2];
+
+    int notes[128][2];
+
+    int CCs[128];
+
+    uint8_t CCsRaw[128];
+
+    int lastVoiceToChange;
+
+    tStack* stack;
+    tStack* orderStack;
+
+    int32_t pitchBend;
+
+    int currentNote;
+    int currentVoice;
+    int currentVelocity;
+    int maxLength;
+
+} tMPoly;
 typedef struct _t808Cowbell {
     
     tSquare* p[2];

@@ -62,6 +62,12 @@
 /* USER CODE BEGIN Includes */
 #include "audiostream.h"
 
+// FOR BEST SPEED
+// set -O2 optimization flag for GCC and add these flags -finline-functions -funswitch-loops -fpredictive-commoning -fgcse-after-reload -ftree-loop-vectorize -ftree-loop-distribution -floop-interchange -floop-unroll-and-jam -fsplit-paths -fvect-cost-model -ftree-partial-pre -fpeel-loops -ffast-math -fsingle-precision-constant
+
+// the -ftree-slp-vectorize breaks something - MIDI, likely
+// -O3 with -fno-tree-slp-vectorize should work but for some reason it isn't as good. Maybe the specific gcc version for ARM omits some of those optimization flags from -O3?
+
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -76,7 +82,7 @@
 //#define SAMPLERATE96K
 
 #define NUM_ADC_CHANNELS 5
-ALIGN_32BYTES (uint16_t myADC[NUM_ADC_CHANNELS] __ATTR_RAM_D2);
+uint16_t myADC[NUM_ADC_CHANNELS] __ATTR_RAM_D2;
 
 uint32_t counter = 0;
 int pinValue = 0;

@@ -12,10 +12,12 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "audiostream.h"
+#include "main.h"
 #include "MIDI_application.h"
 #include "usbh_core.h"
 #include "usbh_MIDI.h"
 #include "usb_host.h"
+
 
 MIDI_ApplicationTypeDef MIDI_Appli_state = MIDI_APPLICATION_READY;
 extern ApplicationTypeDef Appli_state;
@@ -102,10 +104,10 @@ void ProcessReceivedMidiDatas(uint32_t myLength)
 
 						tPolyphonicHandlerNoteOn(poly, key, velocity);
     
-						for (int i = 0; i < NUM_VOICES; i++)
-						{
-								tSawtoothSetFreq(osc[i], OOPS_midiToFrequency(tPolyphonicHandlerGetMidiNote(poly, i)->pitch));
-						}
+						//for (int i = 0; i < NUM_VOICES; i++)
+						//{
+						//		tSawtoothSetFreq(osc[i], OOPS_midiToFrequency(tPolyphonicHandlerGetMidiNote(poly, i)->pitch));
+						//}
 
 					}
 
