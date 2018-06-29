@@ -104,10 +104,10 @@ void ProcessReceivedMidiDatas(uint32_t myLength)
 
 						tPolyphonicHandlerNoteOn(poly, key, velocity);
     
-						//for (int i = 0; i < NUM_VOICES; i++)
-						//{
-						//		tSawtoothSetFreq(osc[i], OOPS_midiToFrequency(tPolyphonicHandlerGetMidiNote(poly, i)->pitch));
-						//}
+						for (int i = 0; i < NUM_VOICES; i++)
+						{
+								tSawtoothSetFreq(osc[i], OOPS_midiToFrequency(tPolyphonicHandlerGetMidiNote(poly, i)->pitch));
+						}
 
 					}
 

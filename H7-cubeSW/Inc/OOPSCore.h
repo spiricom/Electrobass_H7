@@ -552,6 +552,7 @@ typedef struct _tMPoly
     int maxLength;
 
 } tMPoly;
+
 typedef struct _t808Cowbell {
     
     tSquare* p[2];
