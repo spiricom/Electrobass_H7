@@ -2,7 +2,7 @@
 #include "audiostream.h"
 #include "main.h"
 #include "codec.h"
-
+#include "tim.h"
 
 
 // align is to make sure they are lined up with the data boundaries of the cache 
@@ -78,12 +78,14 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 
 float tempVal = 0.0f;
 uint16_t frameCounter = 0;
+float inputSum = 0.0f;
 
 void audioFrame(uint16_t buffer_offset)
 {
 	uint16_t i = 0;
 	int16_t current_sample = 0;
-	//tSawtoothSetFreq(osc[i], 100.0f);
+	tSawtoothSetFreq(osc[0], 500.0f);
+	inputSum = 0.0f;
 /*
 	frameCounter++;
 	if (frameCounter >= 1)
@@ -111,6 +113,16 @@ void audioFrame(uint16_t buffer_offset)
 		}
 		audioOutBuffer[buffer_offset + i] = current_sample;
 	}
+
+	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, (inputSum / AUDIO_FRAME_SIZE) * 6000.0f ); //led3
+	if ((inputSum / AUDIO_FRAME_SIZE) > 0.25f)
+	{
+		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, (inputSum / AUDIO_FRAME_SIZE) * 6000.0f ); //led4
+	}
+	else
+	{
+		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0 ); //led4
+	}
 }
 
 float currentFreq = 1.0f;
@@ -135,15 +147,16 @@ float audioTickL(float audioIn)
 			sample += tSawtoothTick(osc[i]);
 		}
 	}
+	inputSum += fabsf(audioIn);
 
-	//sample = tSawtoothTick(osc[0]);
-	//sample = audioIn;
-	sample *= .25f;
+	sample = audioIn;
+	//sample *= .25f;
 
-	sample = tTalkboxTick(vocoder, sample, audioIn);
+	//sample = tTalkboxTick(vocoder, sample, audioIn);
 	sample = OOPS_softClip(sample, 0.98f);
 	//sample *= myVol;
 	//sample = audioIn;
+
 	return sample;
 }
 

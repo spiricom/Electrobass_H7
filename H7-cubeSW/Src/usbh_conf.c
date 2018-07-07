@@ -63,7 +63,7 @@
 
 /* USER CODE END PV */
 
-                HCD_HandleTypeDef hhcd_USB_OTG_FS __ATTR_RAM_D2;
+                HCD_HandleTypeDef hhcd_USB_OTG_FS;
 void _Error_Handler(char * file, int line);
 
 /* USER CODE BEGIN 0 */
@@ -188,14 +188,9 @@ void HAL_HCD_Disconnect_Callback(HCD_HandleTypeDef *hhcd)
   * @param  urb_state: state
   * @retval None
   */
-uint8_t doneCount = 0;
 void HAL_HCD_HC_NotifyURBChange_Callback(HCD_HandleTypeDef *hhcd, uint8_t chnum, HCD_URBStateTypeDef urb_state)
 {
   /* To be used with OS to sync URB state with the global state machine */
-	if ((urb_state == URB_DONE)&& (chnum == 3))
-	{
-		doneCount++;
-	}
 #if (USBH_USE_OS == 1)
   USBH_LL_NotifyURBChange(hhcd->pData);
 #endif
@@ -219,9 +214,9 @@ USBH_StatusTypeDef USBH_LL_Init(USBH_HandleTypeDef *phost)
   phost->pData = &hhcd_USB_OTG_FS;
 
   hhcd_USB_OTG_FS.Instance = USB_OTG_FS;
-  hhcd_USB_OTG_FS.Init.Host_channels = 11;
+  hhcd_USB_OTG_FS.Init.Host_channels = 16;
   hhcd_USB_OTG_FS.Init.speed = HCD_SPEED_FULL;
-  hhcd_USB_OTG_FS.Init.dma_enable = ENABLE;
+  hhcd_USB_OTG_FS.Init.dma_enable = DISABLE;
   hhcd_USB_OTG_FS.Init.phy_itface = HCD_PHY_EMBEDDED;
   hhcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
   if (HAL_HCD_Init(&hhcd_USB_OTG_FS) != HAL_OK)
@@ -508,7 +503,6 @@ USBH_StatusTypeDef USBH_LL_SubmitURB(USBH_HandleTypeDef *phost, uint8_t pipe, ui
 {
   HAL_StatusTypeDef hal_status = HAL_OK;
   USBH_StatusTypeDef usb_status = USBH_OK;
-
 
   hal_status = HAL_HCD_HC_SubmitRequest(phost->pData, pipe, direction ,
                                         ep_type, token, pbuff, length,

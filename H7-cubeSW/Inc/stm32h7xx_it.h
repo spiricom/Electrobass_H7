@@ -59,9 +59,13 @@ void SysTick_Handler(void);
 void DMA1_Stream2_IRQHandler(void);
 void DMA2_Stream6_IRQHandler(void);
 void DMA2_Stream7_IRQHandler(void);
+void I2C4_EV_IRQHandler(void);
+void I2C4_ER_IRQHandler(void);
 void OTG_FS_EP1_OUT_IRQHandler(void);
 void OTG_FS_EP1_IN_IRQHandler(void);
 void OTG_FS_IRQHandler(void);
+void BDMA_Channel0_IRQHandler(void);
+void BDMA_Channel1_IRQHandler(void);
 
 #ifdef __cplusplus
 }

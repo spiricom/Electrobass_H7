@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * @file            : usb_host.c
-  * @version         : v1.0_Cube
-  * @brief           : This file implements the USB Host
+  * File Name          : TIM.h
+  * Description        : This file provides code for the configuration
+  *                      of the TIM instances.
   ******************************************************************************
   * This notice applies to any and all portions of this file
   * that are not between comment pairs USER CODE BEGIN and
@@ -46,118 +46,44 @@
   *
   ******************************************************************************
   */
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __tim_H
+#define __tim_H
+#ifdef __cplusplus
+ extern "C" {
+#endif
 
 /* Includes ------------------------------------------------------------------*/
-
-#include "usb_host.h"
-#include "usbh_core.h"
-//#include "usbh_audio.h"
-#include "usbh_MIDI.h"
-#include "MIDI_application.h"
-
+#include "stm32h7xx_hal.h"
+#include "main.h"
 
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
 
-/* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
-USBH_HandleTypeDef hUsbHostFS;
-ApplicationTypeDef Appli_state = APPLICATION_IDLE;
-extern MIDI_ApplicationTypeDef MIDI_Appli_state;
-/* USER CODE END PV */
+extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim8;
 
-/* USER CODE BEGIN PFP */
-/* Private function prototypes -----------------------------------------------*/
+/* USER CODE BEGIN Private defines */
 
-/* USER CODE END PFP */
+/* USER CODE END Private defines */
 
-/* USB Host core handle declaration */
+extern void _Error_Handler(char *, int);
 
+void MX_TIM3_Init(void);
+void MX_TIM8_Init(void);
+                    
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+                                
 
-/*
- * -- Insert your variables declaration here --
- */
-/* USER CODE BEGIN 0 */
+/* USER CODE BEGIN Prototypes */
 
-/* USER CODE END 0 */
+/* USER CODE END Prototypes */
 
-/*
- * user callback declaration
- */
-static void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id);
-
-/*
- * -- Insert your external function declaration here --
- */
-/* USER CODE BEGIN 1 */
-
-/* USER CODE END 1 */
-
-/**
-  * Init USB host library, add supported class and start the library
-  * @retval None
-  */
-void MX_USB_HOST_Init(void)
-{
-  /* USER CODE BEGIN USB_HOST_Init_PreTreatment */
-  
-  /* USER CODE END USB_HOST_Init_PreTreatment */
-  
-  /* Init host Library, add supported class and start the library. */
-  USBH_Init(&hUsbHostFS, USBH_UserProcess, HOST_FS);
-
-
-	USBH_RegisterClass(&hUsbHostFS, USBH_MIDI_CLASS);
-
-USBH_Start(&hUsbHostFS);
-
-  /* USER CODE BEGIN USB_HOST_Init_PostTreatment */
-  //HAL_PWREx_EnableUSBVoltageDetector();
-  /* USER CODE END USB_HOST_Init_PostTreatment */
+#ifdef __cplusplus
 }
-
-/*
- * Background task
- */
-void MX_USB_HOST_Process(void)
-{
-
-  USBH_Process(&hUsbHostFS);
-
-  MIDI_Application();
-}
-/*
- * user callback definition
- */
-static void USBH_UserProcess  (USBH_HandleTypeDef *phost, uint8_t id)
-{
-  switch(id)
-  {
-	  case HOST_USER_SELECT_CONFIGURATION:
-		break;
-
-	case HOST_USER_DISCONNECTION:
-		Appli_state = APPLICATION_DISCONNECT;
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);  //LED4
-		break;
-
-	case HOST_USER_CLASS_ACTIVE:
-		Appli_state = APPLICATION_READY;
-		MIDI_Appli_state = MIDI_APPLICATION_READY;
-
-		break;
-
-	case HOST_USER_CONNECTION:
-		Appli_state = APPLICATION_START;
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);  //LED1
-		break;
-
-	default:
-		break;
-  }
-  /* USER CODE END CALL_BACK_1 */
-}
+#endif
+#endif /*__ tim_H */
 
 /**
   * @}
