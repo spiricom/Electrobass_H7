@@ -10,6 +10,7 @@
 #ifndef SSD1306_H_
 #define SSD1306_H_
 
+#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
 
 #define BLACK 0
 #define WHITE 1
@@ -113,6 +114,12 @@ void ssd1306_command(uint8_t c);
 void ssd1306_dim(uint8_t dim);
 void ssd1306_display_full_buffer(void);
 void ssd1306_display(void);
+void ssd1306_write(uint8_t* data, uint16_t numBytes);
+void ssd1306_move(uint8_t row, uint8_t column);
+void ssd1306_move_raw(uint8_t row, uint8_t column);
+void ssd1306_home(void);
+
+
 
 
 

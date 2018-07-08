@@ -53,36 +53,7 @@ unsigned char buffer [] = {
 uint8_t OLED_xpos = 0;
 uint8_t OLED_ypos = 0;
 
-// the most basic function, set a single pixel
-void ssd1306_drawPixel(int16_t x, int16_t y, uint16_t color) {
-  if ((x < 0) || (x >= width()) || (y < 0) || (y >= height()))
-    return;
 
-  // check rotation, move pixel around if necessary
-  switch (getRotation()) {
-  case 1:
-    ssd1306_swap(x, y);
-    x = WIDTH - x - 1;
-    break;
-  case 2:
-    x = WIDTH - x - 1;
-    y = HEIGHT - y - 1;
-    break;
-  case 3:
-    ssd1306_swap(x, y);
-    y = HEIGHT - y - 1;
-    break;
-  }
-
-  // x is which column
-    switch (color)
-    {
-      case WHITE:   buffer[x+ (y/8)*SSD1306_LCDWIDTH] |=  (1 << (y&7)); break;
-      case BLACK:   buffer[x+ (y/8)*SSD1306_LCDWIDTH] &= ~(1 << (y&7)); break;
-      case INVERSE: buffer[x+ (y/8)*SSD1306_LCDWIDTH] ^=  (1 << (y&7)); break;
-    }
-
-}
 
 uint8_t OLED_i2c_address;
 uint8_t OLED_externalVCC;
@@ -209,35 +180,15 @@ void ssd1306_dim(uint8_t dim) {
 }
 
 
+
 void ssd1306_display_full_buffer(void) {
 
 	uint8_t tempBuffer[17];
 
-	ssd1306_command(SSD1306_COLUMNADDR);
-	ssd1306_command(0);   // Column start address (0 = reset)
-	ssd1306_command(SSD1306_LCDWIDTH-1); // Column end address (127 = reset)
+	ssd1306_home();
 
-	ssd1306_command(SSD1306_PAGEADDR);
-	ssd1306_command(0); // Page start address (0 = reset)
-	#if SSD1306_LCDHEIGHT == 64
-	ssd1306_command(7); // Page end address
-	#endif
-	#if SSD1306_LCDHEIGHT == 32
-	ssd1306_command(3); // Page end address
-	#endif
-	#if SSD1306_LCDHEIGHT == 16
-	ssd1306_command(1); // Page end address
-	#endif
-	//uint8_t single_byte = {0x40};
-	//HAL_I2C_Master_Transmit(OLED_i2c_handle, OLED_i2c_address, single_byte, 1, 2000);
-	//Serial.println(TWBR, DEC);
-	//Serial.println(TWSR & 0x3, DEC);
-	// send a bunch of data in one xmission
-	//HAL_Delay(1);
-	// I2C
 	for (int i = 0; i < 512; i++)
 	{
-
 		tempBuffer[0] = 0x40;
 		for (int x = 0; x < 16; x++)
 		{
@@ -251,18 +202,23 @@ void ssd1306_display_full_buffer(void) {
 
 }
 
-void ssd1306_home(void){
-	ssd1306_move(0, 0);
+
+
+void ssd1306_home(void) {
+
+	ssd1306_move_raw(0,0);
 }
 
-
-void ssd1306_move_raw(uint8_t row, uint8_t column) {
-
+void ssd1306_move_raw(uint8_t row, uint8_t column){
 	if(column > 127) { column = 127; }
 	if(row > 7) { row = 7; }
+	ssd1306_command(SSD1306_COLUMNADDR);
+	ssd1306_command(column);   // Column start address (0 = reset)
+	ssd1306_command(SSD1306_LCDWIDTH-1); // Column end address (127 = reset)
 
-	OLED_xpos = column;
-	OLED_ypos = row;
+	ssd1306_command(SSD1306_PAGEADDR);
+	ssd1306_command(row); // Page start address (0 = reset)
+	ssd1306_command(3); // Page end address
 }
 
 
@@ -270,30 +226,58 @@ void ssd1306_move(uint8_t row, uint8_t column) {
 
 	if(column > 15) { column = 15; }
 	if(row > 7) { row = 7; }
-	ssd1306_move_raw(row,column << 3);
-
+	ssd1306_move_raw(row,(uint8_t)(column << 3));
 }
 
 
-void ssd1306_write(uint8_t* data, uint8_t numBytes) {
-	uint8_t column = OLED_xpos;
-	uint8_t row = OLED_ypos;
-	for (uint8_t i = 0; i < numBytes; i++)
+void ssd1306_write_internal(uint8_t* data, uint16_t numBytes) {
+	for (uint16_t i = 0; i < numBytes; i++)
 	{
 		buffer[i+(OLED_xpos + (OLED_ypos * 128))] = data[i];
-		OLED_xpos++;
-		if (OLED_xpos > 127)
-		{
-			OLED_xpos = 0;
-			OLED_ypos++;
-			if (OLED_ypos > 3)
-			{
-				OLED_ypos = 0;
-			}
-		}
+
 	}
-	//ssd1306_display_full_buffer();
-	//HAL_I2C_Master_Transmit(OLED_i2c_handle, OLED_i2c_address, data, numBytes, 2000);
+}
+
+
+
+void ssd1306_write(uint8_t* data, uint16_t numBytes) {
+
+	uint8_t localBuffer[numBytes+1];
+
+	localBuffer[0] = 0x40;
+
+	for (uint16_t i = 0; i < numBytes; i++)
+	{
+		localBuffer[i+1] = data[i];
+	}
+
+	HAL_I2C_Master_Transmit(OLED_i2c_handle, OLED_i2c_address, localBuffer, numBytes+1, 2000);
 
 }
+
+void ssd1306_write_2X(uint8_t* data, uint16_t numBytes) {
+
+	uint8_t localBuffer[(numBytes*2)+1];
+
+	localBuffer[0] = 0x40;
+
+	for (uint16_t i = 0; i < numBytes; i++)
+	{
+		localBuffer[i+1] = data[i] >> 4;
+
+	}
+
+	HAL_I2C_Master_Transmit(OLED_i2c_handle, OLED_i2c_address, localBuffer, (numBytes*2)+1, 2000);
+
+	ssd1306_move(1,0);
+
+	for (uint16_t i = 0; i < numBytes; i++)
+	{
+		localBuffer[i+1] = data[i] & 0x0f;
+	}
+
+	HAL_I2C_Master_Transmit(OLED_i2c_handle, OLED_i2c_address, localBuffer, (numBytes*2)+1, 2000);
+
+}
+
 

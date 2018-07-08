@@ -92,8 +92,9 @@ void oled_put_tile(uint8_t *tile, uint8_t limit) {
 
 void oled_putc_raw(char c) {
 	for(uint16_t i = c << 3; i < (c << 3) + 8; i++) {
-		ssd1306_write(font[i], 1);
+		ssd1306_write(&font[i], 1);
 	}
+
 }
 
 void oled_putc(char c) {
@@ -105,7 +106,16 @@ void oled_putc(char c) {
 	oled_putc_raw(c);
 }
 
-
+void oled_putc_2X(char c) {
+	// remap from petscii to ascii, shifts drawing characters into the lower 32 ascii cells
+	if(c > 'A' && c < 'Z') { }               // upper-case ascii range
+	else if(c > 'a' && c < 'z') { c -= 96; } // lower-case ascii range
+	else if(c > 31 && c < 64) { }            // numbers and symbols
+	else if(c < 32) { c += 96; }             // low ascii
+	for(uint16_t i = c << 3; i < (c << 3) + 8; i++) {
+		ssd1306_write_2X(&font[i], 1);
+	}
+}
 
 void oled_fill(uint8_t row, uint8_t col, uint8_t count, uint8_t max, uint32_t pattern, int8_t pshift) {
 	ssd1306_move(row, col);
@@ -159,9 +169,20 @@ void oled_putxy(uint8_t left_pxl, uint8_t top_pxl, uint8_t *tile) {
 	}
 }
 
+
+
 void oled_puts(char *str) {
+	uint8_t OLED_xpos = 0;
+	uint8_t OLED_ypos = 0;
 	while(*str != 0) {
 		oled_putc(*str++);
+		OLED_xpos++;
+		if (OLED_xpos > 15)
+		{
+			OLED_xpos = 0;
+			OLED_ypos++;
+		}
+		ssd1306_move(OLED_ypos,OLED_xpos );
 	}
 }
 

@@ -63,6 +63,7 @@
 
 /* USER CODE BEGIN Includes */
 #include "audiostream.h"
+#include "gfx.h"
 #include "ssd1306.h"
 #include "oled.h"
 
@@ -223,7 +224,10 @@ uint16_t myADC[NUM_ADC_CHANNELS] __ATTR_RAM_D2;
 uint32_t counter = 0;
 int pinValue = 0;
 
+GFX theGFX;
+
 uint8_t ball[]  = {0x00, 0x3C, 0x7E, 0x7E, 0x7E, 0x7E, 0x3C, 0x00};
+static unsigned char testblock[] = {0x00, 0x7C, 0x7E, 0x0B, 0x0B, 0x7E, 0x7C, 0x00};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -298,19 +302,31 @@ int main(void)
   ssd1306_begin(&hi2c4, SSD1306_SWITCHCAPVCC, SSD1306_I2C_ADDRESS);
   HAL_Delay(5);
   //ssd1306_home();
-  ssd1306_move(0,0);
+  //ssd1306_move(0,0);
   for (int i = 0; i < 512; i++)
   {
 	  buffer[i] = 0;
   }
-  oled_putxy(0,0,&ball);
-  HAL_Delay(500);
-  //ssd1306_display_full_buffer();
-  //ssd1306_command(SSD1306_DISPLAYALLON_RESUME);           // 0xA4
-  //oled_putc('H');
+  //oled_putxy(0,0,&ball);
   ssd1306_display_full_buffer();
-  //ssd1306_display_full_buffer();
-  //ssd1306_display_full_buffer();
+  HAL_Delay(50);
+  //ssd1306_set_ADDR_range_full();
+  //oled_putc_2X('A');
+  //oled_puts("HELLO! IT'S ME  I AM AWESOME    SNYDERPHONICS   4EVA");
+  //oled_bigdigit(0, 0, 8) ;
+  //oled_bigdigit(0, 2, 7) ;
+  //oled_bigdigit(0, 4, 6) ;
+  //oled_bigdigit(0, 6, 5) ;
+  GFXinit(&theGFX, 128, 32);
+
+  GFXwritePixel(&theGFX,0, 0, 1);
+  GFXwritePixel(&theGFX,0, 30, 1);
+  GFXwritePixel(&theGFX,0, 31, 1);
+  GFXwritePixel(&theGFX,1, 0, 1);
+  GFXwritePixel(&theGFX,1, 1, 1);
+  GFXwritePixel(&theGFX,1, 2, 1);
+  ssd1306_display_full_buffer();
+
   HAL_Delay(500);
   //sdd1306_invertDisplay(1);
 
@@ -353,8 +369,8 @@ int main(void)
 
 	  //buffer[counter] = (uint8_t)(randomNumber() * 255.0f);
 
-	  oled_putxy(counter,0,&ball);
-	  ssd1306_display_full_buffer();
+	  //oled_putxy(counter,0,&ball);
+	  //ssd1306_display_full_buffer();
 /*
 	  if (counter > 1000)
 		{
