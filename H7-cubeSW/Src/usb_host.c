@@ -62,7 +62,7 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-USBH_HandleTypeDef hUsbHostFS;
+USBH_HandleTypeDef hUsbHostFS __ATTR_RAM_D2;
 ApplicationTypeDef Appli_state = APPLICATION_IDLE;
 extern MIDI_ApplicationTypeDef MIDI_Appli_state;
 /* USER CODE END PV */

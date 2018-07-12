@@ -32,6 +32,16 @@ float detuneMax = 16.0f;
 uint8_t audioInCV = 0;
 uint8_t audioInCVAlt = 0;
 float myVol = 0.0f;
+float currentFreq = 1.0f;
+
+float rightInput = 0.0f;
+uint16_t string1Position;
+uint8_t string1Touch;
+uint16_t string1TouchRaw;
+float string1MappedPosition = 0.0f;
+float myAmplitude = 0.0f;
+float openStringFrequencies[4] = {80.0f, 60.0f, 80.0f, 100.0f};
+float string1Frequency = 40.0f;
 
 float audioTickL(float audioIn); 
 float audioTickR(float audioIn);
@@ -84,7 +94,7 @@ void audioFrame(uint16_t buffer_offset)
 {
 	uint16_t i = 0;
 	int16_t current_sample = 0;
-	tSawtoothSetFreq(osc[0], 500.0f);
+
 	inputSum = 0.0f;
 /*
 	frameCounter++;
@@ -106,6 +116,7 @@ void audioFrame(uint16_t buffer_offset)
 	{
 		if ((i & 1) == 0) {
 			current_sample = (int16_t)(audioTickL((float) (audioInBuffer[buffer_offset + i] * INV_TWO_TO_15)) * TWO_TO_15);
+			//outBuffer[i] = current_sample;
 		}
 		else
 		{
@@ -113,21 +124,20 @@ void audioFrame(uint16_t buffer_offset)
 		}
 		audioOutBuffer[buffer_offset + i] = current_sample;
 	}
-
-	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, (inputSum / AUDIO_FRAME_SIZE) * 6000.0f ); //led3
-	if ((inputSum / AUDIO_FRAME_SIZE) > 0.25f)
+	/*
+	myAmplitude = (inputSum / AUDIO_FRAME_SIZE);
+	__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, myAmplitude * 6000.0f ); //led3
+	if (myAmplitude > 0.5f)
 	{
-		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, (inputSum / AUDIO_FRAME_SIZE) * 6000.0f ); //led4
+		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, myAmplitude * 6000.0f ); //led4
 	}
 	else
 	{
 		__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0 ); //led4
 	}
+	*/
 }
 
-float currentFreq = 1.0f;
-
-float rightInput = 0.0f;
 
 float audioTickL(float audioIn) 
 {
@@ -139,7 +149,7 @@ float audioTickL(float audioIn)
 
 	}
 	*/
-
+/*
 	for (int i = 0; i < NUM_OSC; i++)
 	{
 		if (tPolyphonicHandlerGetMidiNote(poly, i)->on == OTRUE)
@@ -147,13 +157,31 @@ float audioTickL(float audioIn)
 			sample += tSawtoothTick(osc[i]);
 		}
 	}
-	inputSum += fabsf(audioIn);
+	*/
+	//inputSum += fabsf(audioIn);
 
-	sample = audioIn;
-	//sample *= .25f;
+	if (string1Position < 20000)
+	{
+		tSawtoothSetFreq(osc[0], string1Frequency);
+	}
+	else
+	{
+		tSawtoothSetFreq(osc[0], 40.0f);
+	}
+
+
+	if (string1Touch)
+	{
+		sample = tSawtoothTick(osc[0]);
+	}
+	else
+	{
+		sample = 0.0f;
+	}
+		//sample *= .25f;
 
 	//sample = tTalkboxTick(vocoder, sample, audioIn);
-	sample = OOPS_softClip(sample, 0.98f);
+	//sample = OOPS_softClip(sample, 0.98f);
 	//sample *= myVol;
 	//sample = audioIn;
 

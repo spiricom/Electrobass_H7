@@ -187,13 +187,13 @@ void GFXwriteFastHLine(GFX* myGFX, int16_t x, int16_t y,
     // Overwrite in subclasses if startWrite is defined!
     // Example: writeLine(x, y, x+w-1, y, color);
     // or writeFillRect(x, y, w, 1, color);
-    drawFastHLine(myGFX,x, y, w, color);
+    GFXdrawFastHLine(myGFX,x, y, w, color);
 }
 
 void GFXwriteFillRect(GFX* myGFX,int16_t x, int16_t y, int16_t w, int16_t h,
         uint16_t color) {
     // Overwrite in subclasses if desired!
-    fillRect(myGFX,x,y,w,h,color);
+    GFXfillRect(myGFX,x,y,w,h,color);
 }
 
 void GFXendWrite(GFX* myGFX){

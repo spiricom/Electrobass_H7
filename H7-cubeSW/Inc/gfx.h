@@ -12,6 +12,7 @@
 #include "gfx_font.h"
 #include "ssd1306.h"
 
+
 typedef struct _GFX
 {
 	int16_t WIDTH;

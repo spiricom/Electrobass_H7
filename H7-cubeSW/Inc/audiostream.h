@@ -37,7 +37,7 @@
 #define INV_NUM_OSC 		1.0f/NUM_OSC
 
 
-#define AUDIO_FRAME_SIZE      1024
+#define AUDIO_FRAME_SIZE      32
 #define HALF_BUFFER_SIZE      AUDIO_FRAME_SIZE * 2 //number of samples per half of the "double-buffer" (twice the audio frame size because there are interleaved samples for both left and right channels)
 #define AUDIO_BUFFER_SIZE     AUDIO_FRAME_SIZE * 4 //number of samples in the whole data structure (four times the audio frame size because of stereo and also double-buffering/ping-ponging)
 
@@ -47,7 +47,7 @@ uint8_t buttonValues[NUM_BUTTONS];
 uint8_t buttonValuesPrev[NUM_BUTTONS];
 uint32_t buttonCounters[NUM_BUTTONS];
 uint32_t buttonPressed[NUM_BUTTONS];
-
+extern float myAmplitude;
 extern float testFreq;
 extern uint8_t buttonAPressed;
 extern uint8_t doAudio;
@@ -56,8 +56,15 @@ extern float myVol;
 tSawtooth* osc[NUM_OSC];
 tPolyphonicHandler* poly;
 tTalkbox* vocoder;
+extern int16_t outBuffer[HALF_BUFFER_SIZE];
+extern uint16_t string1Position;
+extern uint8_t string1Touch;
 
+extern uint16_t string1TouchRaw;
+extern float string1MappedPosition;
 
+extern float openStringFrequencies[4];
+extern float string1Frequency;
 /* Exported types ------------------------------------------------------------*/
 typedef enum
 {
