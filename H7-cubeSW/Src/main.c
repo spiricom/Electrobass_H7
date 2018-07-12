@@ -255,13 +255,13 @@ int main(void)
 	  //__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, counter); //led1
 	  //__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, counter); //led4
 	  //__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, counter); //led3
-	  //if (I2C_PSOC_Ready)
+	  if (I2C_PSOC_Ready == 1)
 	  {
 
 		  I2C_PSOC_Ready = 0;
-		  //SCB_InvalidateDCache_by_Addr((uint32_t*)(((uint32_t)bufferFromPSOC) & ~(uint32_t)0x1F), PSOC_BUFFER_LENGTH+32);
-		  //myStatus = HAL_I2C_Master_Receive_DMA(&hi2c2, (uint16_t) (0x08<<1), bufferFromPSOC, PSOC_BUFFER_LENGTH);
-
+		  SCB_InvalidateDCache_by_Addr((uint32_t*)(((uint32_t)bufferFromPSOC) & ~(uint32_t)0x1F), PSOC_BUFFER_LENGTH+32);
+		  myStatus = HAL_I2C_Master_Receive_DMA(&hi2c2, (uint16_t) (0x08<<1), bufferFromPSOC, PSOC_BUFFER_LENGTH);
+		  HAL_Delay(1);
 	  }
 
 
@@ -461,6 +461,11 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *I2cHandle)
 	string1TouchRaw = ((uint16_t)bufferFromPSOC[3] << 8) + ((uint16_t)bufferFromPSOC[4] & 0xff);
 	string1MappedPosition = map((float)string1Position, 4525.0f, 20000.0f, 0.5f, 1.0f);
 	string1Frequency = (1.0 / (2.0f * string1MappedPosition)) * openStringFrequencies[0];
+	I2C_PSOC_Ready = 1;
+}
+
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
+{
 	I2C_PSOC_Ready = 1;
 }
 
