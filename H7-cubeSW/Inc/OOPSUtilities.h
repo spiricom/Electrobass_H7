@@ -50,6 +50,7 @@ float                   tEnvelopeFollowerTick           (tEnvelopeFollower*  con
 int                     tEnvelopeFollowerDecayCoeff     (tEnvelopeFollower*  const, float decayCoeff);
 
 int                     tEnvelopeFollowerAttackThresh   (tEnvelopeFollower*  const, float attackThresh);
+float     				tEnvelopeFollowerSetY			(tEnvelopeFollower* const ef, float y);
 
 
 

@@ -37,6 +37,7 @@ float currentFreq = 1.0f;
 float rightInput = 0.0f;
 uint16_t string1Position;
 uint8_t string1Touch;
+uint8_t string1RHTouch;
 uint16_t string1TouchRaw;
 float string1MappedPosition = 0.0f;
 float myAmplitude = 0.0f;
@@ -78,7 +79,8 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 		detuneAmounts[i] = (randomNumber() * detuneMax) - (detuneMax * 0.5f);
 	}
 	vocoder = tTalkboxInit();
-
+	envFollow = tEnvelopeFollowerInit(0.1f, 0.999995f);
+	dcBlock = tHighpassInit(800.0f);
 	// set up the I2S driver to send audio data to the codec (and retrieve input as well)	
 	transmit_status = HAL_SAI_Transmit_DMA(hsaiOut, (uint8_t *)&audioOutBuffer[0], AUDIO_BUFFER_SIZE);
 	receive_status = HAL_SAI_Receive_DMA(hsaiIn, (uint8_t *)&audioInBuffer[0], AUDIO_BUFFER_SIZE);
@@ -138,6 +140,7 @@ void audioFrame(uint16_t buffer_offset)
 	*/
 }
 
+float audioInGain = 50.0f;
 
 float audioTickL(float audioIn) 
 {
@@ -170,14 +173,23 @@ float audioTickL(float audioIn)
 	}
 
 
-	if (string1Touch)
+	if ((string1Touch == 1) && (string1Position > 20000))
 	{
-		sample = tSawtoothTick(osc[0]);
+		sample = 0.0f;
+		tEnvelopeFollowerSetY(envFollow, 0.0f);
+	}
+	else if (string1RHTouch == 1)
+	{
+		sample = 0.0f;
+		tEnvelopeFollowerSetY(envFollow, 0.0f);
 	}
 	else
 	{
-		sample = 0.0f;
+		sample = tSawtoothTick(osc[0]) * tEnvelopeFollowerTick(envFollow, tanhf(tHighpassTick(dcBlock, audioIn) * audioInGain));
+
 	}
+
+
 		//sample *= .25f;
 
 	//sample = tTalkboxTick(vocoder, sample, audioIn);

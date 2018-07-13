@@ -346,6 +346,11 @@ int     tEnvelopeFollowerAttackThresh(tEnvelopeFollower* const ef, float attackT
 {
     return ef->a_thresh = attackThresh;
 }
+
+float     tEnvelopeFollowerSetY(tEnvelopeFollower* const ef, float y)
+{
+    return ef->y = y;
+}
 #endif // N_ENVELOPEFOLLOW
 
 #if N_RAMP

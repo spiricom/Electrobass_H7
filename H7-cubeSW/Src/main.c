@@ -459,8 +459,9 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *I2cHandle)
 	string1Position = ((uint16_t)bufferFromPSOC[1] << 8) + ((uint16_t)bufferFromPSOC[2] & 0xff);
 	string1Touch = bufferFromPSOC[0];
 	string1TouchRaw = ((uint16_t)bufferFromPSOC[3] << 8) + ((uint16_t)bufferFromPSOC[4] & 0xff);
-	string1MappedPosition = map((float)string1Position, 4525.0f, 20000.0f, 0.5f, 1.0f);
+	string1MappedPosition = map((float)string1Position, 4525.0f, 19300.0f, 0.5f, 1.0f);
 	string1Frequency = (1.0 / (2.0f * string1MappedPosition)) * openStringFrequencies[0];
+	string1RHTouch = bufferFromPSOC[5];
 	I2C_PSOC_Ready = 1;
 }
 
