@@ -88,7 +88,7 @@
 //FPU->CPACR |= (1<<24);
 
 //#define SAMPLERATE96K
-#define PSOC_BUFFER_LENGTH 8
+#define PSOC_BUFFER_LENGTH 18
 
 #define NUM_ADC_CHANNELS 5
 uint16_t myADC[NUM_ADC_CHANNELS] __ATTR_RAM_D2;
@@ -454,6 +454,8 @@ float randomNumber(void) {
 	return num;
 }
 
+uint16_t stringTouch[16];
+uint8_t stringTouchOnOff;
 void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *I2cHandle)
 {
 	string1Position = ((uint16_t)bufferFromPSOC[1] << 8) + ((uint16_t)bufferFromPSOC[2] & 0xff);
@@ -462,6 +464,12 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *I2cHandle)
 	string1MappedPosition = map((float)string1Position, 4525.0f, 19300.0f, 0.5f, 1.0f);
 	string1Frequency = (1.0 / (2.0f * string1MappedPosition)) * openStringFrequencies[0];
 	string1RHTouch = bufferFromPSOC[5];
+	uint8_t byteCounter = 0;
+	for (uint8_t i = 0; i < 8; i++)
+	{
+		stringTouch[i] = ((bufferFromPSOC[byteCounter++] << 8) | (bufferFromPSOC[byteCounter++]));
+	}
+	stringTouchOnOff = bufferFromPSOC[16];
 	I2C_PSOC_Ready = 1;
 }
 
