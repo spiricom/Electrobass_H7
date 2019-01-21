@@ -5,11 +5,6 @@
 #include "tim.h"
 
 
-// align is to make sure they are lined up with the data boundaries of the cache 
-// at(0x3....) is to put them in the D2 domain of SRAM where the DMA can access them
-// (otherwise the TX times out because the DMA can't see the data location) -JS
-
-
 int16_t audioOutBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2;
 int16_t audioInBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2;
 
@@ -28,7 +23,7 @@ float sample = 0.0f;
 
 float adcx[8];
 
-float detuneMax = 16.0f;
+float detuneMax = 0.2f;
 uint8_t audioInCV = 0;
 uint8_t audioInCVAlt = 0;
 float myVol = 0.0f;
@@ -70,7 +65,6 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 
 	HAL_Delay(100);
 
-	poly = tPolyphonicHandlerInit();
 	adcVals = myADCArray;
 	for (int i = 0; i < NUM_OSC; i++)
 	{
@@ -78,9 +72,13 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 		tSawtoothSetFreq(osc[i], (randomNumber() * 2000.0f) + 40.0f);
 		detuneAmounts[i] = (randomNumber() * detuneMax) - (detuneMax * 0.5f);
 	}
-	vocoder = tTalkboxInit();
-	envFollow = tEnvelopeFollowerInit(0.1f, 0.999995f);
+
+	filter = tSVFInit(SVFTypeLowpass, 900.0f, 2.0f);
+	//vocoder = tTalkboxInit();
+	envFollow = tEnvelopeFollowerInit(0.2f, 0.99998f);
 	dcBlock = tHighpassInit(800.0f);
+	myRamp = tRampInit(10.0f, 1);
+	freqRamp = tRampInit(20.0f, 1);
 	// set up the I2S driver to send audio data to the codec (and retrieve input as well)	
 	transmit_status = HAL_SAI_Transmit_DMA(hsaiOut, (uint8_t *)&audioOutBuffer[0], AUDIO_BUFFER_SIZE);
 	receive_status = HAL_SAI_Receive_DMA(hsaiIn, (uint8_t *)&audioInBuffer[0], AUDIO_BUFFER_SIZE);
@@ -140,62 +138,46 @@ void audioFrame(uint16_t buffer_offset)
 	*/
 }
 
-float audioInGain = 50.0f;
+float audioInGain = 20.0f;
 
 float audioTickL(float audioIn) 
 {
 	sample = 0.0f;
-	/*
-	for (int i = 0; i < 4; i++)
-	{
-		tCycleSetFreq(mySine[i], ((((float)adcVals[i]) * INV_TWO_TO_16) * 1000.0f) + 40.0f);
 
-	}
-	*/
-/*
-	for (int i = 0; i < NUM_OSC; i++)
-	{
-		if (tPolyphonicHandlerGetMidiNote(poly, i)->on == OTRUE)
-		{
-			sample += tSawtoothTick(osc[i]);
-		}
-	}
-	*/
-	//inputSum += fabsf(audioIn);
+	float endFreq = 0.0f;
 
 	if (string1Position < 20000)
 	{
-		tSawtoothSetFreq(osc[0], string1Frequency);
+		endFreq = string1Frequency;
 	}
 	else
 	{
-		tSawtoothSetFreq(osc[0], 40.0f);
+		endFreq = 40.0f;
 	}
 
-
+	tRampSetDest(freqRamp, endFreq);
+	float endFreqMIDI = OOPS_frequencyToMidi(tRampTick(freqRamp));
 	if ((string1Touch == 1) && (string1Position > 20000))
 	{
-		sample = 0.0f;
-		tEnvelopeFollowerSetY(envFollow, 0.0f);
+		audioIn = 0.0f;
+		tRampSetDest(myRamp, 0.0f);
 	}
 	else if (string1RHTouch == 1)
 	{
-		sample = 0.0f;
-		tEnvelopeFollowerSetY(envFollow, 0.0f);
+		audioIn = 0.0f;
+		tRampSetDest(myRamp, 0.0f);
 	}
 	else
 	{
-		sample = tSawtoothTick(osc[0]) * tEnvelopeFollowerTick(envFollow, tanhf(tHighpassTick(dcBlock, audioIn) * audioInGain));
-
+		tRampSetDest(myRamp, 1.0f);
 	}
-
-
-		//sample *= .25f;
-
-	//sample = tTalkboxTick(vocoder, sample, audioIn);
-	//sample = OOPS_softClip(sample, 0.98f);
-	//sample *= myVol;
-	//sample = audioIn;
+	float envelope = tEnvelopeFollowerTick(envFollow, tanhf(tHighpassTick(dcBlock, audioIn) * audioInGain));
+	tSVFSetFreq(filter, (envelope * envelope * envelope * envelope * 500.0f) + 30.0f);
+	for (uint8_t i = 0;  i < NUM_OSC; i++)
+	{
+		tSawtoothSetFreq(osc[i], OOPS_midiToFrequency(endFreqMIDI + detuneAmounts[i]));
+		sample += OOPS_shaper(tSVFTick(filter, tSawtoothTick(osc[i]) * .07f * envelope * tRampTick(myRamp)), 1.1f);
+	}
 
 	return sample;
 }

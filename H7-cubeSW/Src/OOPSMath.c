@@ -51,7 +51,7 @@ float OOPS_CompoundChebyshevT(float in, int n, float* amps){
 
 float OOPS_frequencyToMidi(float f)
 {
-	return (69.0f + 12.0f * log2(f * INV_440));
+	return (69.0f + 12.0f * log2f(f * INV_440));
 }
 
 // Jones shaper

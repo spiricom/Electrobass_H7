@@ -33,7 +33,7 @@
 
 #include "OOPS.h"
 
-#define NUM_OSC 			4
+#define NUM_OSC 			3
 #define INV_NUM_OSC 		1.0f/NUM_OSC
 
 
@@ -54,9 +54,10 @@ extern uint8_t doAudio;
 extern float detuneAmounts[NUM_OSC];
 extern float myVol;
 tSawtooth* osc[NUM_OSC];
-tPolyphonicHandler* poly;
-tTalkbox* vocoder;
+tSVF* filter;
 tEnvelopeFollower* envFollow;
+tRamp* myRamp;
+tRamp* freqRamp;
 tHighpass* dcBlock;
 extern int16_t outBuffer[HALF_BUFFER_SIZE];
 extern uint16_t string1Position;
