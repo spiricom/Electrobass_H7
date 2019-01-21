@@ -2,8 +2,6 @@
   ******************************************************************************
   * @file    stm32h7xx_hal_i2c.c
   * @author  MCD Application Team
-  * @version V1.2.0
-  * @date   29-December-2017
   * @brief   I2C HAL module driver.
   *          This file provides firmware functions to manage the following
   *          functionalities of the Inter Integrated Circuit (I2C) peripheral:
@@ -4355,22 +4353,6 @@ static void I2C_DMAMasterReceiveCplt(DMA_HandleTypeDef *hdma)
   {
     /* Enable STOP interrupt */
     I2C_Enable_IRQ(hi2c, I2C_XFER_CPLT_IT);
-
-
-
-	  hi2c->State         = HAL_I2C_STATE_READY;
-	  hi2c->PreviousState = I2C_STATE_MASTER_BUSY_RX;
-	  hi2c->XferISR       = NULL;
-
-	  /* Disable Interrupts */
-	  I2C_Disable_IRQ(hi2c, I2C_XFER_RX_IT);
-
-	  /* Process Unlocked */
-	  __HAL_UNLOCK(hi2c);
-
-	  /* Call the corresponding callback to inform upper layer of End of Transfer */
-	  HAL_I2C_MasterRxCpltCallback(hi2c);
-
   }
   /* else prepare a new DMA transfer and enable TCReload interrupt */
   else

@@ -1,56 +1,47 @@
-
+/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
   * @brief          : Main program body
   ******************************************************************************
-  * This notice applies to any and all portions of this file
+  ** This notice applies to any and all portions of this file
   * that are not between comment pairs USER CODE BEGIN and
   * USER CODE END. Other portions of this file, whether 
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * Copyright (c) 2018 STMicroelectronics International N.V. 
-  * All rights reserved.
+  * COPYRIGHT(c) 2018 STMicroelectronics
   *
-  * Redistribution and use in source and binary forms, with or without 
-  * modification, are permitted, provided that the following conditions are met:
+  * Redistribution and use in source and binary forms, with or without modification,
+  * are permitted provided that the following conditions are met:
+  *   1. Redistributions of source code must retain the above copyright notice,
+  *      this list of conditions and the following disclaimer.
+  *   2. Redistributions in binary form must reproduce the above copyright notice,
+  *      this list of conditions and the following disclaimer in the documentation
+  *      and/or other materials provided with the distribution.
+  *   3. Neither the name of STMicroelectronics nor the names of its contributors
+  *      may be used to endorse or promote products derived from this software
+  *      without specific prior written permission.
   *
-  * 1. Redistribution of source code must retain the above copyright notice, 
-  *    this list of conditions and the following disclaimer.
-  * 2. Redistributions in binary form must reproduce the above copyright notice,
-  *    this list of conditions and the following disclaimer in the documentation
-  *    and/or other materials provided with the distribution.
-  * 3. Neither the name of STMicroelectronics nor the names of other 
-  *    contributors to this software may be used to endorse or promote products 
-  *    derived from this software without specific written permission.
-  * 4. This software, including modifications and/or derivative works of this 
-  *    software, must execute solely and exclusively on microcontroller or
-  *    microprocessor devices manufactured by or for STMicroelectronics.
-  * 5. Redistribution and use of this software other than as permitted under 
-  *    this license is void and will automatically terminate your rights under 
-  *    this license. 
-  *
-  * THIS SOFTWARE IS PROVIDED BY STMICROELECTRONICS AND CONTRIBUTORS "AS IS" 
-  * AND ANY EXPRESS, IMPLIED OR STATUTORY WARRANTIES, INCLUDING, BUT NOT 
-  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A 
-  * PARTICULAR PURPOSE AND NON-INFRINGEMENT OF THIRD PARTY INTELLECTUAL PROPERTY
-  * RIGHTS ARE DISCLAIMED TO THE FULLEST EXTENT PERMITTED BY LAW. IN NO EVENT 
-  * SHALL STMICROELECTRONICS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
-  * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
-  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING 
-  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   *
   ******************************************************************************
   */
+/* USER CODE END Header */
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stm32h7xx_hal.h"
 #include "adc.h"
-#include "bdma.h"
+#include "dac.h"
 #include "dma.h"
 #include "i2c.h"
 #include "quadspi.h"
@@ -58,73 +49,162 @@
 #include "sai.h"
 #include "spi.h"
 #include "tim.h"
-#include "usb_host.h"
 #include "gpio.h"
+#include "ui.h"
 
+/* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "audiostream.h"
-#include "gfx.h"
-#include "ssd1306.h"
-#include "oled.h"
-#include "custom_fonts.h"
-
-// FOR BEST SPEED
-// set -O2 optimization flag for GCC and add these flags -finline-functions -funswitch-loops -fpredictive-commoning -fgcse-after-reload -ftree-loop-vectorize -ftree-loop-distribution -floop-interchange -floop-unroll-and-jam -fsplit-paths -fvect-cost-model -ftree-partial-pre -fpeel-loops -ffast-math -fsingle-precision-constant
-
-// the -ftree-slp-vectorize breaks something - MIDI, likely
-// -O3 with -fno-tree-slp-vectorize should work but for some reason it isn't as good. Maybe the specific gcc version for ARM omits some of those optimization flags from -O3?
-
-#include "externs.h"
+#include "leaf.h"
 
 /* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
-//register unsigned int apsr __asm("cpacr");
 
-//FPU->CPACR |= (1<<24);
 
-//#define SAMPLERATE96K
-#define PSOC_BUFFER_LENGTH 25
 
-#define NUM_ADC_CHANNELS 5
+
+#define NUM_ADC_CHANNELS 12
 uint16_t myADC[NUM_ADC_CHANNELS] __ATTR_RAM_D2;
+int counter = 0;
+int internalcounter = 0;
 
-uint32_t counter = 0;
-int pinValue = 0;
 
-uint8_t bufferFromPSOC[PSOC_BUFFER_LENGTH] __ATTR_RAM_D2;
-
-uint32_t myStatus = 0;
-uint8_t I2C_PSOC_Ready = 1;
-
-GFX theGFX;
 
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-void MX_USB_HOST_Process(void);
-
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void MPU_Conf(void);
 /* USER CODE END PFP */
 
+/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-float map(float value, float istart, float istop, float ostart, float ostop) {
-    return ostart + (ostop - ostart) * ((value - istart) / (istop - istart));
-  }
+
+
+//
+
+/*
+ * setup for Snare and Kick Genera patch
+ *
+ * <<<<if using 8 knob / 8 jack version>>>>
+ *
+ * IO board channel 5 = both jumpers set to input
+ * IO board channel 6 = both jumpers set to input
+ * IO board channel 7 = both jumpers set to input
+ * IO board channel 8 = both jumpers set to input
+ * jumper A = 3
+ * jumper B = 3
+ * jumper C = 3
+ * jumper D = 3
+ * jumper E = 3
+ * jumper F = 3
+ * jumper G = 1
+ * jumper H = 1
+ * jumper K = 3
+ * jumper L = 3
+ * jumper M = 3
+ * jumper N = 3
+ * all other jumpers not necessary
+ *
+ *
+ *  functionality :
+ *  knob 1 = volume
+ *  knob 2 = snare noise/tone mix
+ *  knob 3 = snare pitch
+ *  knob 4 = snare decay
+ *  knob 5 = kick pitch
+ *  knob 6 = kick decay
+ *  knob 7 = n/a
+ *  knob 8 = n/a
+ *  jack 1 = volume CV (added to knob 1)
+ *  jack 2 = snare pitch CV (added to knob 3)
+ *  jack 3 = snare decay CV (added to knob 4)
+ *  jack 4 = kick decay CV (added to knob 6)
+ *  jack 5 = trigger snare
+ *  jack 6 = trigger kick
+ *  jack 7 = audio output snare
+ *  jack 8 = audio output kick
+ *
+ *
+ *
+ *
+ *
+ * <<<<if using 6 knob / 12 jack version>>>>
+ *
+ * IO board channel 3 = both jumpers set to input
+ * IO board channel 4 = both jumpers set to input
+ * IO board channel 5 = both jumpers set to input
+ * IO board channel 6 = both jumpers set to input
+ * IO board channel 7 = both jumpers set to input
+ * IO board channel 8 = both jumpers set to input
+ * jumper A = 3
+ * jumper B = 3
+ * jumper C = 3
+ * jumper D = 3
+ * jumper E = 3
+ * jumper F = 3
+ * jumper G = 1
+ * jumper H = 1
+ * jumper K = 3
+ * jumper L = 3
+ * jumper M = 1
+ * jumper N = 1
+ * jumper O = 3
+ * all other jumpers not necessary
+ *
+ *  functionality :
+ *  knob 1 = volume
+ *  knob 2 = snare noise/tone mix
+ *  knob 3 = snare pitch
+ *  knob 4 = snare decay
+ *  knob 5 = kick pitch
+ *  knob 6 = kick decay
+ *  jack 1 = volume CV (added to knob 1)
+ *  jack 2 = snare pitch CV (added to knob 3)
+ *  jack 3 = snare decay CV (added to knob 4)
+ *  jack 4 = kick decay CV (added to knob 6)
+ *  jack 5 = trigger snare
+ *  jack 6 = trigger kick
+ *  jack 7 = audio output snare
+ *  jack 8 = audio output kick
+ *  jack 9 = n/a
+ *  jack 10 = n/a
+ *  jack 11 = n/a
+ *  jack 12 = n/a
+ */
+
+///
+
+
+
 /* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
-  *
-  * @retval None
+  * @retval int
   */
 int main(void)
 {
@@ -134,13 +214,13 @@ int main(void)
   SystemInit();
   /* USER CODE END 1 */
 
-  /* Enable I-Cache-------------------------------------------------------------*/
+  /* Enable I-Cache---------------------------------------------------------*/
   SCB_EnableICache();
 
-  /* Enable D-Cache-------------------------------------------------------------*/
+  /* Enable D-Cache---------------------------------------------------------*/
   SCB_EnableDCache();
 
-  /* MCU Configuration----------------------------------------------------------*/
+  /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -154,12 +234,16 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 
+  // this code sets the processor to treat denormal numbers (very tiny floats) as zero to improve performance.
+  // I'm not sure if this is working as I expect and haven't tested it
+  uint32_t tempFPURegisterVal = __get_FPSCR();
+  tempFPURegisterVal |= (1<<24); // set the FTZ (flush-to-zero) bit in the FPU control register
+  __set_FPSCR(tempFPURegisterVal);
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_BDMA_Init();
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_I2C2_Init();
@@ -167,165 +251,85 @@ int main(void)
   MX_RNG_Init();
   MX_SAI1_Init();
   MX_SPI4_Init();
-  MX_I2C4_Init();
-  MX_USB_HOST_Init();
   MX_TIM3_Init();
-  MX_TIM8_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
-  //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);  //LED1
-  //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_SET); //LED2
+  //set up the timers that control PWM dimming on RGB LEDs
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
-/*
-  ssd1306_begin(&hi2c4, SSD1306_SWITCHCAPVCC, SSD1306_I2C_ADDRESS);
-  HAL_Delay(5);
-  //ssd1306_home();
-  //ssd1306_move(0,0);
-  for (int i = 0; i < 512; i++)
-  {
-	  buffer[i] = 0;
-  }
-  //oled_putxy(0,0,&ball);
-  ssd1306_display_full_buffer();
-  //HAL_Delay(50);
-  //ssd1306_set_ADDR_range_full();
-  //oled_putc_2X('A');
-  //oled_puts("HELLO! IT'S ME  I AM AWESOME    SNYDERPHONICS   4EVA");
-  //oled_bigdigit(0, 0, 8) ;
-  //oled_bigdigit(0, 2, 7) ;
-  //oled_bigdigit(0, 4, 6) ;
-  //oled_bigdigit(0, 6, 5) ;
-  GFXinit(&theGFX, 128, 32);
-
-  GFXsetFont(&theGFX, &Lato_Hairline_16);
-  GFXsetTextColor(&theGFX, 1, 0);
-  GFXsetTextSize(&theGFX, 1);
-  GFXsetCursor(&theGFX, 0,13);
-  GFXwrite(&theGFX,'1');
-  GFXwrite(&theGFX,' ');
-  GFXwrite(&theGFX,' ');
-  GFXwrite(&theGFX,'V');
-  GFXwrite(&theGFX,'O');
-  GFXwrite(&theGFX,'C');
-  GFXwrite(&theGFX,'O');
-  GFXwrite(&theGFX,'D');
-  GFXwrite(&theGFX,'E');
-  GFXwrite(&theGFX,'R');
-  //GFXsetCursor(&theGFX, 100,16);
-  //GFXwriteFastHLine(&theGFX, 0, 24,
-          //128, 1);
-
-  //GFXwrite(&theGFX,'A');
-  //GFXdrawChar(&theGFX,0,0,'H', 1, 0, 2);
-
-  ssd1306_display_full_buffer();
-
-  //HAL_Delay(500);
-  sdd1306_invertDisplay(1);
-
-
-*/
-  //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);    //LED3
-  //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);  //LED4
-
-  // this code sets the processor to treat denormal numbers (very tiny floats) as zero to improve performance.
-  uint32_t tempFPURegisterVal = __get_FPSCR();
-  tempFPURegisterVal = (1<<24); // set the FTZ (flush-to-zero) bit in the FPU control register
-  __set_FPSCR(tempFPURegisterVal);
+  //and set the PWM values for those LEDs
+  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 0);
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
 
 	if (HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&myADC, NUM_ADC_CHANNELS) != HAL_OK)
 	{
 		Error_Handler();
 
 	}
-	audioInit(&hi2c2, &hsai_BlockA1, &hsai_BlockB1, &hrng, ((uint16_t*)&myADC));
+	audioInit(&hi2c2, &hsai_BlockA1, &hsai_BlockB1, myADC);
+	
 
+	//look at the configure_Jack function for notes on how to set the physical jumpers for each setting
+	configure_Jack(1, ANALOG_INPUT); //jack 1 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
+	configure_Jack(2, ANALOG_INPUT); //jack 2 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
+	configure_Jack(3, ANALOG_INPUT); //jack 3 can be DIGITAL_INPUT, DIGITAL_OUTPUT, ANALOG_INPUT (CV in), or ANALOG_OUTPUT (CV out)
+	configure_Jack(4, ANALOG_INPUT); //jack 4 can be DIGITAL_INPUT, DIGITAL_OUTPUT, ANALOG_INPUT (CV in), or ANALOG_OUTPUT (CV out)
+	configure_Jack(5, DIGITAL_INPUT); //jack 5 can be DIGITAL_INPUT, or AUDIO_INPUT
+	configure_Jack(6, DIGITAL_INPUT); //jack 6 can be DIGITAL_INPUT, or AUDIO_INPUT
+	configure_Jack(7, AUDIO_OUTPUT); //jack 7 can be DIGITAL_OUTPUT, or AUDIO_OUTPUT
+	configure_Jack(8, AUDIO_OUTPUT); //jack 8 can be DIGITAL_OUTPUT, or AUDIO_OUTPUT
 
+	//comment these in and configure them if you are using a Genera version with 12 knobs and 6 jacks instead of an 8knob/8jack version
+	//configure_Jack(9, DIGITAL_OUTPUT); //jack 9 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)  -- analog input takes over the input for knob 5
+	//configure_Jack(10, DIGITAL_INPUT); //jack 10 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)  -- analog input takes over the input for knob 6
+	//configure_Jack(11, ANALOG_INPUT); //jack 11 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
+	//configure_Jack(12, ANALOG_INPUT); //jack 12 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
 
-	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
-	//HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
-	//__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 0); //led4
+	//it seems like this should be able to happen inside the jack configuration code, but it didn't work when I tried it and this worked to set a flag and break it out. ??? -JS
+	if (DAC1_active == 1)
+	{
+	  HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
+	}
+	if (DAC2_active == 1)
+	{
+	  HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
+	}
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  //__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, counter); //led1
-	  //__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, counter); //led4
-	  //__HAL_TIM_SET_COMPARE(&htim8, TIM_CHANNEL_1, counter); //led3
-	  if (I2C_PSOC_Ready == 1)
+
+	  //RGB_LED_setColor(255,255,255);
+
+	  //some useless code to mess with the LEDs and CV DAC outputs for tutorial purposes
+	  if (counter > 200000)
 	  {
+		  //a little routine to fade up the RGB leds together
+		  if (RGB_mode == 3)
+		  {
+			  RGB_LED_setColor(internalcounter % 256, internalcounter % 256, internalcounter % 256);
+		  }
+		  //another routine to send ramps out the DAC outputs (jacks 3 and 4 in ANALOG_OUTPUT mode)
+		  CV_DAC_Output(1, internalcounter % 2048);
+		  CV_DAC_Output(2, internalcounter % 2048);
 
-		  I2C_PSOC_Ready = 0;
-		  SCB_InvalidateDCache_by_Addr((uint32_t*)(((uint32_t)bufferFromPSOC) & ~(uint32_t)0x1F), PSOC_BUFFER_LENGTH+32);
-		  myStatus = HAL_I2C_Master_Receive_DMA(&hi2c2, (uint16_t) (0x08<<1), bufferFromPSOC, PSOC_BUFFER_LENGTH);
-		  HAL_Delay(1);
+		  internalcounter++;
+		  counter = 0;
 	  }
+	  counter++;
 
+    /* USER CODE END WHILE */
 
-
-
-
-
-
-	  //HAL_Delay(1);
-	  /*
-	  GFXwriteFastHLine(&theGFX, 0, 24, 128, 0);
-	  GFXwriteFastHLine(&theGFX, 0, 24, (uint8_t)( myAmplitude * 128.0f), 1);
-
-	  GFXwriteFastHLine(&theGFX, 0, 25, 128, 0);
-	  GFXwriteFastHLine(&theGFX, 0, 25, (uint8_t)( myAmplitude * 128.0f), 1);
-
-	  GFXwriteFastHLine(&theGFX, 0, 26, 128, 0);
-	  GFXwriteFastHLine(&theGFX, 0, 26, (uint8_t)( myAmplitude * 128.0f), 1);
-
-	  GFXwriteFastHLine(&theGFX, 0, 26, 128, 0);
-	  GFXwriteFastHLine(&theGFX, 0, 26, (uint8_t)( myAmplitude * 128.0f), 1);
-	  */
-	  /*
-	  GFXfillRect(&theGFX, 0, 16, 128, 16, 0);
-
-	  for (int i = 0; i < 128; i++)
-	  {
-		  GFXwritePixel(&theGFX, i, (uint16_t) (((float)outBuffer[i*2] * INV_TWO_TO_15 * 8.0f) + 24.0f), 1);
-	  }
-	  ssd1306_display_full_buffer();
-	  //buffer[counter] = (uint8_t)(randomNumber() * 255.0f);
-
-	  //oled_putxy(counter,0,&ball);
-	  //ssd1306_display_full_buffer();
-	   */
-
-
-
-/*
-	  if (counter > 1000)
-		{
-			if (pinValue == 0)
-			{
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
-				pinValue = 1;
-			}
-			else
-			{
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-				pinValue = 0;
-			}
-			counter = 0;
-		}
-		counter++;
-		*/
-
-  /* USER CODE END WHILE */
-    //MX_USB_HOST_Process();
-
-  /* USER CODE BEGIN 3 */
-
+    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
-
 }
 
 /**
@@ -334,34 +338,31 @@ int main(void)
   */
 void SystemClock_Config(void)
 {
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
-  RCC_OscInitTypeDef RCC_OscInitStruct;
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct;
-
-    /**Supply configuration update enable 
-    */
+  /**Supply configuration update enable 
+  */
   MODIFY_REG(PWR->CR3, PWR_CR3_SCUEN, 0);
-
-    /**Configure the main internal regulator output voltage 
-    */
+  /**Configure the main internal regulator output voltage 
+  */
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   while ((PWR->D3CR & (PWR_D3CR_VOSRDY)) != PWR_D3CR_VOSRDY) 
   {
     
   }
-    /**Macro to configure the PLL clock source 
-    */
+  /**Macro to configure the PLL clock source 
+  */
   __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
-
-    /**Initializes the CPU, AHB and APB busses clocks 
-    */
+  /**Initializes the CPU, AHB and APB busses clocks 
+  */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
                               |RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
-  RCC_OscInitStruct.HSICalibrationValue = 16;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
@@ -375,11 +376,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLFRACN = 0;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
-    /**Initializes the CPU, AHB and APB busses clocks 
-    */
+  /**Initializes the CPU, AHB and APB busses clocks 
+  */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2
                               |RCC_CLOCKTYPE_D3PCLK1|RCC_CLOCKTYPE_D1PCLK1;
@@ -393,13 +393,11 @@ void SystemClock_Config(void)
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RNG|RCC_PERIPHCLK_SPI4
                               |RCC_PERIPHCLK_SAI1|RCC_PERIPHCLK_I2C2
-                              |RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_I2C4
-                              |RCC_PERIPHCLK_USB|RCC_PERIPHCLK_QSPI
+                              |RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_QSPI
                               |RCC_PERIPHCLK_CKPER;
   PeriphClkInitStruct.PLL2.PLL2M = 25;
   PeriphClkInitStruct.PLL2.PLL2N = 344;
@@ -409,38 +407,17 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_0;
   PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
   PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
-  PeriphClkInitStruct.PLL3.PLL3M = 25;
-  PeriphClkInitStruct.PLL3.PLL3N = 192;
-  PeriphClkInitStruct.PLL3.PLL3P = 4;
-  PeriphClkInitStruct.PLL3.PLL3Q = 4;
-  PeriphClkInitStruct.PLL3.PLL3R = 2;
-  PeriphClkInitStruct.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_0;
-  PeriphClkInitStruct.PLL3.PLL3VCOSEL = RCC_PLL3VCOWIDE;
-  PeriphClkInitStruct.PLL3.PLL3FRACN = 0;
   PeriphClkInitStruct.QspiClockSelection = RCC_QSPICLKSOURCE_D1HCLK;
   PeriphClkInitStruct.CkperClockSelection = RCC_CLKPSOURCE_HSI;
   PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLL2;
   PeriphClkInitStruct.Spi45ClockSelection = RCC_SPI45CLKSOURCE_D2PCLK1;
   PeriphClkInitStruct.RngClockSelection = RCC_RNGCLKSOURCE_HSI48;
   PeriphClkInitStruct.I2c123ClockSelection = RCC_I2C123CLKSOURCE_D2PCLK1;
-  PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL3;
-  PeriphClkInitStruct.I2c4ClockSelection = RCC_I2C4CLKSOURCE_D3PCLK1;
   PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_CLKP;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
-    _Error_Handler(__FILE__, __LINE__);
+    Error_Handler();
   }
-
-    /**Configure the Systick interrupt time 
-    */
-  HAL_SYSTICK_Config(SystemCoreClock/1000);
-
-    /**Configure the Systick 
-    */
-  HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-
-  /* SysTick_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
 /* USER CODE BEGIN 4 */
@@ -454,37 +431,23 @@ float randomNumber(void) {
 	return num;
 }
 
-uint16_t stringTouch[16];
-uint8_t stringTouchOnOff;
-void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *I2cHandle)
+void CV_DAC_Output(uint8_t DACnum, uint16_t value)  //takes numbers from 0-4096 (if R119 and R121 are replaced with 22k instead of 47k, otherwise only 0-2048)
+//note that DAC1 comes out jack 4 and DAC2 comes out jack 3 (I know it makes no sense) - JS
 {
-	string1Position =  ((uint16_t)bufferFromPSOC[19] << 8) + ((uint16_t)bufferFromPSOC[20] & 0xff);
-	string1Touch = (bufferFromPSOC[16] >> 0) & 1;
-	string1MappedPosition = map((float)string1Position, 4525.0f, 19300.0f, 0.5f, 1.0f);
-	string1Frequency = (1.0 / (2.0f * string1MappedPosition)) * openStringFrequencies[0];
-	string1RHTouch = (bufferFromPSOC[16] >> 4) & 1;
-	I2C_PSOC_Ready = 1;
-	/*
-	string1Position = ((uint16_t)bufferFromPSOC[1] << 8) + ((uint16_t)bufferFromPSOC[2] & 0xff);
-	string1Touch = bufferFromPSOC[0];
-	string1TouchRaw = ((uint16_t)bufferFromPSOC[3] << 8) + ((uint16_t)bufferFromPSOC[4] & 0xff);
-	string1MappedPosition = map((float)string1Position, 4525.0f, 19300.0f, 0.5f, 1.0f);
-	string1Frequency = (1.0 / (2.0f * string1MappedPosition)) * openStringFrequencies[0];
-	string1RHTouch = bufferFromPSOC[5];
-	uint8_t byteCounter = 0;
-	for (uint8_t i = 0; i < 8; i++)
+	if (DACnum == 1)
 	{
-		stringTouch[i] = ((bufferFromPSOC[byteCounter++] << 8) | (bufferFromPSOC[byteCounter++]));
+		HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, value);
+
 	}
-	stringTouchOnOff = bufferFromPSOC[16];
-	I2C_PSOC_Ready = 1;
-	*/
+	else if (DACnum == 2)
+	{
+		HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, value);
+	}
 }
 
-void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
-{
-	I2C_PSOC_Ready = 1;
-}
+
+
+
 
 void MPU_Conf(void)
 {
@@ -502,19 +465,19 @@ void MPU_Conf(void)
 	  // Increased region size to 256k. In Keshikan's code, this was 512 bytes (that's all that application needed).
 	  // Each audio buffer takes up the frame size * 8 (16 bits makes it *2 and stereo makes it *2 and double buffering makes it *2)
 	  // So a buffer size for read/write of 4096 would take up 64k = 4096*8 * 2 (read and write).
-	  // I increased that to 256k so that there would be room for the ADC knob inputs and other peripherals that might require DMA access (for instance the OLED screen).
+	  // I increased that to 256k so that there would be room for the ADC knob inputs and other peripherals that might require DMA access.
 	  // we have a total of 256k in SRAM1 (128k, 0x30000000-0x30020000) and SRAM2 (128k, 0x30020000-0x3004000) of D2 domain. 
-		// There is an SRAM3 in D2 domain as well (32k, 0x30040000-0x3004800) that is currently not mapped by the MPU (memory protection unit) controller. 
+	  // There is an SRAM3 in D2 domain as well (32k, 0x30040000-0x3004800) that is currently not mapped by the MPU (memory protection unit) controller.
 	  
 	  MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
 
 	  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
 
 	  //AN4838
-	  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+	  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
 	  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-	  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-	  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+	  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+	  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
 
 	  //Shared Device
 //	  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
@@ -528,12 +491,46 @@ void MPU_Conf(void)
 	  MPU_InitStruct.SubRegionDisable = 0x00;
 
 
-	  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+	  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 
 
 	  HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
 
+	  //now set up D3 domain RAM
+
+	  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+
+	 	  //D2 Domain�SRAM1
+	 	  MPU_InitStruct.BaseAddress = 0x38000000;
+
+
+	 	  MPU_InitStruct.Size = MPU_REGION_SIZE_64KB;
+
+	 	  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+
+	 	  //AN4838
+	 	  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+	 	  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+	 	  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+	 	  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+
+	 	  //Shared Device
+	 //	  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+	 //	  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+	 //	  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+	 //	  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+
+
+	 	  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+
+	 	  MPU_InitStruct.SubRegionDisable = 0x00;
+
+
+	 	  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+
+
+	 	  HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
 
 	  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
@@ -542,11 +539,9 @@ void MPU_Conf(void)
 
 /**
   * @brief  This function is executed in case of error occurrence.
-  * @param  file: The file name as string.
-  * @param  line: The line in file as a number.
   * @retval None
   */
-void _Error_Handler(char *file, int line)
+void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
@@ -565,7 +560,7 @@ void _Error_Handler(char *file, int line)
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t* file, uint32_t line)
+void assert_failed(uint8_t *file, uint32_t line)
 { 
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
@@ -573,13 +568,5 @@ void assert_failed(uint8_t* file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

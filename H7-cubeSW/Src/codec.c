@@ -1,4 +1,5 @@
 #include "codec.h"
+#include "main.h"
 
 uint16_t i2cDataSize = 2;
 uint8_t myI2cData[2] = {0,0};
@@ -12,28 +13,28 @@ void AudioCodec_init(I2C_HandleTypeDef* hi2c) {
 	
 	//reset the DAC
 	myI2cData[0] = 0x1e;
-  myI2cData[1] = 0x00;
+    myI2cData[1] = 0x00;
 	HAL_I2C_Master_Transmit(hi2c, CODEC_I2C_ADDRESS, myI2cData, i2cDataSize, I2Ctimeout);
 	
 	//power reduction register - turn power on but don't turn off OutputPD bit yet (also currently leaving microphone bias and oscillator/clkout disabled)
 	//if you want to use the microphone input, this will have to be set to 0x70 instead of 0x72
 	myI2cData[0] = 0x0c;
-  myI2cData[1] = 0xE1;
+    myI2cData[1] = 0xE1;
 	HAL_I2C_Master_Transmit(hi2c, CODEC_I2C_ADDRESS, myI2cData, i2cDataSize, I2Ctimeout);
  
 	//digital data format - I2S 
 	myI2cData[0] = 0x0e;
-  myI2cData[1] = 0x02;
+    myI2cData[1] = 0x0e;  //0x02 for 16 bit, 0x0e for 32 bit
 	HAL_I2C_Master_Transmit(hi2c, CODEC_I2C_ADDRESS, myI2cData, i2cDataSize, I2Ctimeout);
 
   //left in setup register
 	myI2cData[0] = 0x00;
-  myI2cData[1] = LINVOL;
+    myI2cData[1] = LINVOL;
 	HAL_I2C_Master_Transmit(hi2c, CODEC_I2C_ADDRESS, myI2cData, i2cDataSize, I2Ctimeout);
 	
   //right in setup register
 	myI2cData[0] = 0x02;
-  myI2cData[1] = RINVOL;
+    myI2cData[1] = RINVOL;
 	HAL_I2C_Master_Transmit(hi2c, CODEC_I2C_ADDRESS, myI2cData, i2cDataSize, I2Ctimeout);
  
   //left headphone out register
@@ -60,7 +61,12 @@ void AudioCodec_init(I2C_HandleTypeDef* hi2c) {
 	
 	//clock configuration
 	myI2cData[0] = 0x10;
-  myI2cData[1] = 0x00; 
+	#ifdef SAMPLERATE96K
+		myI2cData[1] = 0x1c;
+	#endif
+	#ifdef SAMPLERATE48K
+		myI2cData[1] = 0x00;
+	#endif
 	HAL_I2C_Master_Transmit(hi2c, CODEC_I2C_ADDRESS, myI2cData, i2cDataSize, I2Ctimeout);
  
 	//codec enable
@@ -69,10 +75,10 @@ void AudioCodec_init(I2C_HandleTypeDef* hi2c) {
 	HAL_I2C_Master_Transmit(hi2c, CODEC_I2C_ADDRESS, myI2cData, i2cDataSize, I2Ctimeout);
 
 
-//power reduction register - now turn off OutputPD bit (also currently leaving microphone bias and oscillator/clkout disabled)
+    //power reduction register - now turn off OutputPD bit (also currently leaving microphone bias and oscillator/clkout disabled)
 	//if you want to use the microphone input, this will have to be set to 0x60 instead of 0x62
 	myI2cData[0] = 0x0c;
-  myI2cData[1] = 0x62; //was 0x61 for feedback trombone - maybe line input was turned off?
+    myI2cData[1] = 0x62;
 	
 	HAL_I2C_Master_Transmit(hi2c, CODEC_I2C_ADDRESS, myI2cData, i2cDataSize, I2Ctimeout);
 }

@@ -26,14 +26,14 @@ void AudioCodec_init(I2C_HandleTypeDef* hi2c);
 #endif
 
 #ifndef LINVOL
-  #define LINVOL 0x1f
+  #define LINVOL 0x17
 #elif (LINVOL >= 0) && (LINVOL <= 0x1f)
 #else
   #error LINVOL value not defined
 #endif
 
 #ifndef RINVOL
-  #define RINVOL 0x1f
+  #define RINVOL 0x17
 #elif (RINVOL >= 0) && (RINVOL <= 0x1f)
 #else
   #error RINVOL value not defined
