@@ -1,0 +1,6 @@
+[submodule "LEAF"]
+	path = LEAF
+	url = https://github.com/spiricom/LEAF.git
+[submodule "H7-cubeSW/LEAF"]
+	path = H7-cubeSW/LEAF
+	url = https://github.com/spiricom/LEAF.git

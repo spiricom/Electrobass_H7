@@ -147,7 +147,7 @@ void configure_Jack(uint8_t jackNumber, jackModeType jackMode)
 		else if (jackMode == ANALOG_OUTPUT) //put jumper A on 1 and jumper B on 1
 		{
 			//keep pin in analog mode (no pull up or down) but initialize it with the DAC
-			MX_DAC1_Init(2);
+			//MX_DAC1_Init(2);
 			GPIO_InitStruct.Pin = GPIO_PIN_4;
 			GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
 			GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -193,7 +193,7 @@ void configure_Jack(uint8_t jackNumber, jackModeType jackMode)
 		{
 			//keep pin in analog mode (no pull up or down) but initialize it with the DAC
 
-			MX_DAC1_Init(1);
+			//MX_DAC1_Init(1);
 			GPIO_InitStruct.Pin = GPIO_PIN_4;
 			GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
 			GPIO_InitStruct.Pull = GPIO_NOPULL;

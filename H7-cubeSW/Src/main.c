@@ -50,12 +50,12 @@
 #include "spi.h"
 #include "tim.h"
 #include "gpio.h"
-#include "ui.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "audiostream.h"
 #include "leaf.h"
+#include "ui.h"
 
 /* USER CODE END Includes */
 
@@ -85,11 +85,20 @@
 
 #define NUM_ADC_CHANNELS 12
 uint16_t myADC[NUM_ADC_CHANNELS] __ATTR_RAM_D2;
+uint8_t spiTXBuffer[16] __ATTR_RAM_D2;
+uint8_t spiRXBuffer[16] __ATTR_RAM_D2;
+uint8_t myOtherArray[16];
 int counter = 0;
 int internalcounter = 0;
+uint8_t previousPin = 1;
+uint8_t errorState = 0;
+enum {
+  TRANSFER_WAIT,
+  TRANSFER_COMPLETE,
+  TRANSFER_ERROR
+};
 
-
-
+__IO uint32_t wTransferState = TRANSFER_WAIT;
 
 /* USER CODE END PV */
 
@@ -102,102 +111,6 @@ void MPU_Conf(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-
-//
-
-/*
- * setup for Snare and Kick Genera patch
- *
- * <<<<if using 8 knob / 8 jack version>>>>
- *
- * IO board channel 5 = both jumpers set to input
- * IO board channel 6 = both jumpers set to input
- * IO board channel 7 = both jumpers set to input
- * IO board channel 8 = both jumpers set to input
- * jumper A = 3
- * jumper B = 3
- * jumper C = 3
- * jumper D = 3
- * jumper E = 3
- * jumper F = 3
- * jumper G = 1
- * jumper H = 1
- * jumper K = 3
- * jumper L = 3
- * jumper M = 3
- * jumper N = 3
- * all other jumpers not necessary
- *
- *
- *  functionality :
- *  knob 1 = volume
- *  knob 2 = snare noise/tone mix
- *  knob 3 = snare pitch
- *  knob 4 = snare decay
- *  knob 5 = kick pitch
- *  knob 6 = kick decay
- *  knob 7 = n/a
- *  knob 8 = n/a
- *  jack 1 = volume CV (added to knob 1)
- *  jack 2 = snare pitch CV (added to knob 3)
- *  jack 3 = snare decay CV (added to knob 4)
- *  jack 4 = kick decay CV (added to knob 6)
- *  jack 5 = trigger snare
- *  jack 6 = trigger kick
- *  jack 7 = audio output snare
- *  jack 8 = audio output kick
- *
- *
- *
- *
- *
- * <<<<if using 6 knob / 12 jack version>>>>
- *
- * IO board channel 3 = both jumpers set to input
- * IO board channel 4 = both jumpers set to input
- * IO board channel 5 = both jumpers set to input
- * IO board channel 6 = both jumpers set to input
- * IO board channel 7 = both jumpers set to input
- * IO board channel 8 = both jumpers set to input
- * jumper A = 3
- * jumper B = 3
- * jumper C = 3
- * jumper D = 3
- * jumper E = 3
- * jumper F = 3
- * jumper G = 1
- * jumper H = 1
- * jumper K = 3
- * jumper L = 3
- * jumper M = 1
- * jumper N = 1
- * jumper O = 3
- * all other jumpers not necessary
- *
- *  functionality :
- *  knob 1 = volume
- *  knob 2 = snare noise/tone mix
- *  knob 3 = snare pitch
- *  knob 4 = snare decay
- *  knob 5 = kick pitch
- *  knob 6 = kick decay
- *  jack 1 = volume CV (added to knob 1)
- *  jack 2 = snare pitch CV (added to knob 3)
- *  jack 3 = snare decay CV (added to knob 4)
- *  jack 4 = kick decay CV (added to knob 6)
- *  jack 5 = trigger snare
- *  jack 6 = trigger kick
- *  jack 7 = audio output snare
- *  jack 8 = audio output kick
- *  jack 9 = n/a
- *  jack 10 = n/a
- *  jack 11 = n/a
- *  jack 12 = n/a
- */
-
-///
-
 
 
 /* USER CODE END 0 */
@@ -247,14 +160,16 @@ int main(void)
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_I2C2_Init();
-  MX_QUADSPI_Init();
+  //MX_QUADSPI_Init();
   MX_RNG_Init();
   MX_SAI1_Init();
   MX_SPI4_Init();
-  MX_TIM3_Init();
-  MX_TIM1_Init();
+  //MX_TIM3_Init();
+  //MX_DAC1_Init();
+  //MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
+  /*
   //set up the timers that control PWM dimming on RGB LEDs
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
@@ -264,15 +179,35 @@ int main(void)
   __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, 0);
   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
-
-	if (HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&myADC, NUM_ADC_CHANNELS) != HAL_OK)
+*/
+/*
+  if (HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&myADC, NUM_ADC_CHANNELS) != HAL_OK)
 	{
 		Error_Handler();
 
 	}
-	audioInit(&hi2c2, &hsai_BlockA1, &hsai_BlockB1, myADC);
-	
+*/
 
+	for (int i = 0; i < 16; i++)
+	{
+		spiTXBuffer[i] = counter;
+		counter++;
+	}
+
+	//set up to get and send data to the RX buffer continuously
+	//HAL_SPI_TransmitReceive_DMA(&hspi4, (uint8_t*)spiTXBuffer, (uint8_t *)spiRXBuffer, 16);
+	//counter = HAL_SPI_Receive(&hspi4, spiRXBuffer, 16, 10000);
+
+
+
+/*
+	audioInit(&hi2c2, &hsai_BlockA1, &hsai_BlockB1, myADC);
+*/
+
+
+
+
+/*
 	//look at the configure_Jack function for notes on how to set the physical jumpers for each setting
 	configure_Jack(1, ANALOG_INPUT); //jack 1 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
 	configure_Jack(2, ANALOG_INPUT); //jack 2 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
@@ -288,8 +223,10 @@ int main(void)
 	//configure_Jack(10, DIGITAL_INPUT); //jack 10 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)  -- analog input takes over the input for knob 6
 	//configure_Jack(11, ANALOG_INPUT); //jack 11 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
 	//configure_Jack(12, ANALOG_INPUT); //jack 12 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
-
+*/
 	//it seems like this should be able to happen inside the jack configuration code, but it didn't work when I tried it and this worked to set a flag and break it out. ??? -JS
+
+	/*
 	if (DAC1_active == 1)
 	{
 	  HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
@@ -298,32 +235,50 @@ int main(void)
 	{
 	  HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 	}
-
+	 */
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-	  //RGB_LED_setColor(255,255,255);
-
-	  //some useless code to mess with the LEDs and CV DAC outputs for tutorial purposes
-	  if (counter > 200000)
+	  if (!HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_11) && (previousPin == 1))
 	  {
-		  //a little routine to fade up the RGB leds together
-		  if (RGB_mode == 3)
-		  {
-			  RGB_LED_setColor(internalcounter % 256, internalcounter % 256, internalcounter % 256);
-		  }
-		  //another routine to send ramps out the DAC outputs (jacks 3 and 4 in ANALOG_OUTPUT mode)
-		  CV_DAC_Output(1, internalcounter % 2048);
-		  CV_DAC_Output(2, internalcounter % 2048);
+		  previousPin = 0;
+		  wTransferState = TRANSFER_WAIT;
+		  errorState = HAL_SPI_TransmitReceive_DMA(&hspi4, (uint8_t*)spiTXBuffer, (uint8_t *)spiRXBuffer, 16);
+		  if(errorState != HAL_OK)
+		  	  {
+		  	    /* Transfer error in transmission process */
+		  	    //Error_Handler();
+		  	  }
 
-		  internalcounter++;
-		  counter = 0;
+		  	  while (wTransferState == TRANSFER_WAIT)
+		  	  {
+		  	  }
+
+		  	  SCB_InvalidateDCache_by_Addr ((uint32_t *)spiRXBuffer, 16);
+
+		  	  switch(wTransferState)
+		  	  {
+		  	    case TRANSFER_COMPLETE :
+		  	    	for (int i = 0; i < 16; i++)
+		  	    	{
+		  	    		myOtherArray[i] = spiRXBuffer[i];
+		  	    	}
+		  	    	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+
+		  	      break;
+		  	    default :
+		  	     // Error_Handler();
+		  	      break;
+		  	  }
+
 	  }
-	  counter++;
+	  else if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_11) == 1)
+	  {
+		  previousPin = 1;
+	  }
 
     /* USER CODE END WHILE */
 
@@ -431,21 +386,6 @@ float randomNumber(void) {
 	return num;
 }
 
-void CV_DAC_Output(uint8_t DACnum, uint16_t value)  //takes numbers from 0-4096 (if R119 and R121 are replaced with 22k instead of 47k, otherwise only 0-2048)
-//note that DAC1 comes out jack 4 and DAC2 comes out jack 3 (I know it makes no sense) - JS
-{
-	if (DACnum == 1)
-	{
-		HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, value);
-
-	}
-	else if (DACnum == 2)
-	{
-		HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, value);
-	}
-}
-
-
 
 
 
@@ -535,6 +475,36 @@ void MPU_Conf(void)
 
 	  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 }
+
+
+void HAL_DMA_ErrorCallback(SAI_HandleTypeDef *hsai)
+{
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
+	mode3 = 1;
+}
+
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+  /* Turn LED1 on: Transfer in transmission process is complete */
+  //BSP_LED_On(LED1);
+  /* Turn LED2 on: Transfer in reception process is complete */
+  //BSP_LED_On(LED2);
+  wTransferState = TRANSFER_COMPLETE;
+}
+
+/**
+  * @brief  SPI error callbacks.
+  * @param  hspi: SPI handle
+  * @note   This example shows a simple way to report transfer error, and you can
+  *         add your own implementation.
+  * @retval None
+  */
+void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
+{
+  wTransferState = TRANSFER_ERROR;
+}
+
+
 /* USER CODE END 4 */
 
 /**
