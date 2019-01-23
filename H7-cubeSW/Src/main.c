@@ -90,15 +90,8 @@ uint8_t spiRXBuffer[16] __ATTR_RAM_D2;
 uint8_t myOtherArray[16];
 int counter = 0;
 int internalcounter = 0;
-uint8_t previousPin = 1;
 uint8_t errorState = 0;
-enum {
-  TRANSFER_WAIT,
-  TRANSFER_COMPLETE,
-  TRANSFER_ERROR
-};
 
-__IO uint32_t wTransferState = TRANSFER_WAIT;
 
 /* USER CODE END PV */
 
@@ -180,13 +173,12 @@ int main(void)
   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
 */
-/*
+
   if (HAL_ADC_Start_DMA(&hadc1,(uint32_t*)&myADC, NUM_ADC_CHANNELS) != HAL_OK)
 	{
 		Error_Handler();
 
 	}
-*/
 
 	for (int i = 0; i < 16; i++)
 	{
@@ -195,14 +187,9 @@ int main(void)
 	}
 
 	//set up to get and send data to the RX buffer continuously
-	//HAL_SPI_TransmitReceive_DMA(&hspi4, (uint8_t*)spiTXBuffer, (uint8_t *)spiRXBuffer, 16);
-	//counter = HAL_SPI_Receive(&hspi4, spiRXBuffer, 16, 10000);
+	errorState = HAL_SPI_TransmitReceive_DMA(&hspi4, (uint8_t*)spiTXBuffer, (uint8_t *)spiRXBuffer, 16);
 
-
-
-/*
 	audioInit(&hi2c2, &hsai_BlockA1, &hsai_BlockB1, myADC);
-*/
 
 
 
@@ -242,6 +229,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  /*
 	  if (!HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_11) && (previousPin == 1))
 	  {
 		  previousPin = 0;
@@ -249,7 +237,6 @@ int main(void)
 		  errorState = HAL_SPI_TransmitReceive_DMA(&hspi4, (uint8_t*)spiTXBuffer, (uint8_t *)spiRXBuffer, 16);
 		  if(errorState != HAL_OK)
 		  	  {
-		  	    /* Transfer error in transmission process */
 		  	    //Error_Handler();
 		  	  }
 
@@ -279,6 +266,7 @@ int main(void)
 	  {
 		  previousPin = 1;
 	  }
+	  */
 
     /* USER CODE END WHILE */
 
@@ -479,17 +467,12 @@ void MPU_Conf(void)
 
 void HAL_DMA_ErrorCallback(SAI_HandleTypeDef *hsai)
 {
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
-	mode3 = 1;
+	;
 }
 
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
-  /* Turn LED1 on: Transfer in transmission process is complete */
-  //BSP_LED_On(LED1);
-  /* Turn LED2 on: Transfer in reception process is complete */
-  //BSP_LED_On(LED2);
-  wTransferState = TRANSFER_COMPLETE;
+	;
 }
 
 /**
@@ -501,7 +484,7 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
   */
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
-  wTransferState = TRANSFER_ERROR;
+  ;
 }
 
 
