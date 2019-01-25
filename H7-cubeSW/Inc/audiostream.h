@@ -39,7 +39,8 @@
 
 
 extern int32_t audioOutBuffer[AUDIO_BUFFER_SIZE];
-
+extern uint8_t spiTXBuffer[16];
+extern uint8_t spiRXBuffer[16];
 /* Exported types ------------------------------------------------------------*/
 typedef enum
 {

@@ -85,8 +85,7 @@
 
 #define NUM_ADC_CHANNELS 12
 uint16_t myADC[NUM_ADC_CHANNELS] __ATTR_RAM_D2;
-uint8_t spiTXBuffer[16] __ATTR_RAM_D2;
-uint8_t spiRXBuffer[16] __ATTR_RAM_D2;
+
 uint8_t myOtherArray[16];
 int counter = 0;
 int internalcounter = 0;
@@ -191,82 +190,12 @@ int main(void)
 
 	audioInit(&hi2c2, &hsai_BlockA1, &hsai_BlockB1, myADC);
 
-
-
-
-/*
-	//look at the configure_Jack function for notes on how to set the physical jumpers for each setting
-	configure_Jack(1, ANALOG_INPUT); //jack 1 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
-	configure_Jack(2, ANALOG_INPUT); //jack 2 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
-	configure_Jack(3, ANALOG_INPUT); //jack 3 can be DIGITAL_INPUT, DIGITAL_OUTPUT, ANALOG_INPUT (CV in), or ANALOG_OUTPUT (CV out)
-	configure_Jack(4, ANALOG_INPUT); //jack 4 can be DIGITAL_INPUT, DIGITAL_OUTPUT, ANALOG_INPUT (CV in), or ANALOG_OUTPUT (CV out)
-	configure_Jack(5, DIGITAL_INPUT); //jack 5 can be DIGITAL_INPUT, or AUDIO_INPUT
-	configure_Jack(6, DIGITAL_INPUT); //jack 6 can be DIGITAL_INPUT, or AUDIO_INPUT
-	configure_Jack(7, AUDIO_OUTPUT); //jack 7 can be DIGITAL_OUTPUT, or AUDIO_OUTPUT
-	configure_Jack(8, AUDIO_OUTPUT); //jack 8 can be DIGITAL_OUTPUT, or AUDIO_OUTPUT
-
-	//comment these in and configure them if you are using a Genera version with 12 knobs and 6 jacks instead of an 8knob/8jack version
-	//configure_Jack(9, DIGITAL_OUTPUT); //jack 9 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)  -- analog input takes over the input for knob 5
-	//configure_Jack(10, DIGITAL_INPUT); //jack 10 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)  -- analog input takes over the input for knob 6
-	//configure_Jack(11, ANALOG_INPUT); //jack 11 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
-	//configure_Jack(12, ANALOG_INPUT); //jack 12 can be DIGITAL_INPUT, DIGITAL_OUTPUT, or ANALOG_INPUT (CV in)
-*/
-	//it seems like this should be able to happen inside the jack configuration code, but it didn't work when I tried it and this worked to set a flag and break it out. ??? -JS
-
-	/*
-	if (DAC1_active == 1)
-	{
-	  HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
-	}
-	if (DAC2_active == 1)
-	{
-	  HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
-	}
-	 */
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  /*
-	  if (!HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_11) && (previousPin == 1))
-	  {
-		  previousPin = 0;
-		  wTransferState = TRANSFER_WAIT;
-		  errorState = HAL_SPI_TransmitReceive_DMA(&hspi4, (uint8_t*)spiTXBuffer, (uint8_t *)spiRXBuffer, 16);
-		  if(errorState != HAL_OK)
-		  	  {
-		  	    //Error_Handler();
-		  	  }
-
-		  	  while (wTransferState == TRANSFER_WAIT)
-		  	  {
-		  	  }
-
-		  	  SCB_InvalidateDCache_by_Addr ((uint32_t *)spiRXBuffer, 16);
-
-		  	  switch(wTransferState)
-		  	  {
-		  	    case TRANSFER_COMPLETE :
-		  	    	for (int i = 0; i < 16; i++)
-		  	    	{
-		  	    		myOtherArray[i] = spiRXBuffer[i];
-		  	    	}
-		  	    	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
-
-		  	      break;
-		  	    default :
-		  	     // Error_Handler();
-		  	      break;
-		  	  }
-
-	  }
-	  else if (HAL_GPIO_ReadPin(GPIOE, GPIO_PIN_11) == 1)
-	  {
-		  previousPin = 1;
-	  }
-	  */
 
     /* USER CODE END WHILE */
 

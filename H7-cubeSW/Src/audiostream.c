@@ -6,14 +6,19 @@
 #include "tim.h"
 #include "ui.h"
 
+#define HIGHBOARD
+
 //the audio buffers are put in the D2 RAM area because that is a memory location that the DMA has access to.
 int32_t audioOutBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2;
 int32_t audioInBuffer[AUDIO_BUFFER_SIZE] __ATTR_RAM_D2;
+uint8_t spiTXBuffer[16] __ATTR_RAM_D2;
+uint8_t spiRXBuffer[16] __ATTR_RAM_D2;
 
 void audioFrame(uint16_t buffer_offset);
 float audioTickL(float audioIn); 
 float audioTickR(float audioIn);
-void buttonCheck(void);
+float map(float value, float istart, float istop, float ostart, float ostop);
+
 
 HAL_StatusTypeDef transmit_status;
 HAL_StatusTypeDef receive_status;
@@ -21,30 +26,27 @@ HAL_StatusTypeDef receive_status;
 uint16_t* adcVals;
 
 
-
-#define NUM_BUTTONS 4
-uint8_t buttonValues[NUM_BUTTONS];
-uint8_t buttonValuesPrev[NUM_BUTTONS];
-uint32_t buttonCounters[NUM_BUTTONS];
-uint32_t buttonPressed[NUM_BUTTONS];
-
-
 float sample = 0.0f;
 
 uint16_t frameCounter = 0;
 
+float attack[2] = {0,0};
+uint16_t attackDetected[2] = {0,0};
+
 //audio objects
-tRamp adc[12];
+tRamp ampRamp[2];
 tCycle mySine[2];
-t808Snare mySnare;
-t808Kick myKick;
-tNoise myNoise;
+tSawtooth mySaw[2];
+tNoise myNoise[2];
+tEnvelopeFollower follower[2];
+tHighpass dcBlocker[2];
 /**********************************************/
 
 typedef enum BOOL {
 	FALSE = 0,
 	TRUE
 } BOOL;
+
 
 
 void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTypeDef* hsaiIn, uint16_t* adc_array)
@@ -55,33 +57,27 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 
 	adcVals = adc_array; //in audiostream.h, the array of adc values is now called adcVals.
 
-	// adcVals array has the data organized as follows:
-	// [0] = knob 1
-	// [1] = knob 2
-	// [2] = knob 3
-	// [3] = knob 4
-	// [4] = knob 5 (depending on jumper K)
-	// [5] = knob 6 (depending on jumper L)
-	// [6] = knob 7 or jack 11 (depending on jumper M)
-	// [7] = knob 8 or jack 12 (depending on jumper N and jumper O)
-	// [8] = jack 1
-	// [9] = jack 2
-	// [10] = jack 3 (depending on jumper A and jumper B)
-	// [11] = jack 4 (depending on jumper C and jumper D)
-
-	// note that the knobs come in with the data backwards (fully clockwise is near zero, counter-clockwise is near 65535)
-	// the CVs come in as expected (0V = 0, 10V = 65535)
-
-
-	for (int i = 0; i < 12; i++)
+	for (int i = 0; i < 2; i++)
 	{
-		tRamp_init(&adc[i],7.0f, 1); //set all ramps for knobs/jacks to be 7ms ramp time and let the init function know they will be ticked every sample
-		//if you want to read different knobs/jacks at different rates or with different smoothing times, you can reinit after this
+		tRamp_init(&ampRamp[i],15.0f, 1);
+		tCycle_init(&mySine[i]);
+		tSawtooth_init(&mySaw[i]);
+		tNoise_init(&myNoise[i], WhiteNoise);
+		tEnvelopeFollower_init(&follower[i], .01f, .99995f);
+		tHighpass_init(&dcBlocker[i], 80.0f);
 	}
-
-	t808Snare_init(&mySnare);
-	t808Kick_init(&myKick);
-	tNoise_init(&myNoise, WhiteNoise);
+	/*
+	tCycle_init(&mySine[0]);
+	tCycle_init(&mySine[1]);
+	tSawtooth_init(&mySaw[0]);
+	tSawtooth_init(&mySaw[1]);
+	tNoise_init(&myNoise[0], WhiteNoise);
+	tNoise_init(&myNoise[1], WhiteNoise);
+	tEnvelopeFollower_init(&follower[0], .01f, .99995f);
+	tEnvelopeFollower_init(&follower[1], .01f, .99995f);
+	tHighpass_init(&dcBlocker[0], 80.0f);
+	tHighpass_init(&dcBlocker[1], 80.0f);
+	*/
 	//now to send all the necessary messages to the codec
 	AudioCodec_init(hi2c);
 
@@ -97,18 +93,85 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 	receive_status = HAL_SAI_Receive_DMA(hsaiIn, (uint8_t *)&audioInBuffer[0], AUDIO_BUFFER_SIZE);
 }
 
+uint16_t stringPositions[2];
+float stringMappedPositions[2];
+float stringFrequencies[2];
+uint8_t stringTouchLH[2] = {0,0};
+uint8_t stringTouchRH[2] = {0,0};
+float openStringFrequencies[4] = {41.204f, 55.0f, 73.416f, 97.999f};
+
+
 void audioFrame(uint16_t buffer_offset)
 {
 	int i;
 	int32_t current_sample = 0;
 
+#ifdef LOWBOARD
+	stringPositions[0] =  ((uint16_t)spiRXBuffer[2] << 8) + ((uint16_t)spiRXBuffer[3] & 0xff);
+	if (stringPositions[0] == 65535)
+	{
+		stringFrequencies[0] = openStringFrequencies[0];
+	}
+	else
+	{
+		stringMappedPositions[0] = map((float)stringPositions[0], 4505.0f, 9126.0f, 0.5f, 0.66666666666f);
+		stringFrequencies[0] = (1.0 / (2.0f * stringMappedPositions[0])) * openStringFrequencies[0] * 2.0f;
+	}
+	stringTouchLH[0] = (spiRXBuffer[8] >> 0) & 1;
+	stringTouchRH[0] = (spiRXBuffer[8] >> 4) & 1;
+
+
+	stringPositions[1] =  ((uint16_t)spiRXBuffer[6] << 8) + ((uint16_t)spiRXBuffer[7] & 0xff);
+
+	if (stringPositions[1] == 65535)
+	{
+		stringFrequencies[1] = openStringFrequencies[1];
+	}
+	else
+	{
+		stringMappedPositions[1] = map((float)stringPositions[1], 4230.0f, 8704.0f, 0.5f, 0.66666666f);
+		stringFrequencies[1] = (1.0 / (2.0f * stringMappedPositions[1])) * openStringFrequencies[1] * 2.0f;
+	}
+	stringTouchLH[1] = (spiRXBuffer[8] >> 1) & 1;
+	stringTouchRH[1] = (spiRXBuffer[8] >> 5) & 1;
+#endif
+
+#ifdef HIGHBOARD
+	stringPositions[0] =  ((uint16_t)spiRXBuffer[4] << 8) + ((uint16_t)spiRXBuffer[5] & 0xff);
+	if (stringPositions[0] == 65535)
+	{
+		stringFrequencies[0] = openStringFrequencies[2];
+	}
+	else
+	{
+		stringMappedPositions[0] = map((float)stringPositions[0], 4462.0f, 9168.0f, 0.5f, 0.6666666666f);
+		stringFrequencies[0] = (1.0 / (2.0f * stringMappedPositions[0])) * openStringFrequencies[2] * 2.0f;
+	}
+	stringTouchLH[0] = (spiRXBuffer[8] >> 2) & 1;
+	stringTouchRH[0] = (spiRXBuffer[8] >> 6) & 1;
+
+
+	stringPositions[1] =  ((uint16_t)spiRXBuffer[0] << 8) + ((uint16_t)spiRXBuffer[1] & 0xff);
+
+	if (stringPositions[1] == 65535)
+	{
+		stringFrequencies[1] = openStringFrequencies[3];
+	}
+	else
+	{
+		stringMappedPositions[1] = map((float)stringPositions[1], 4294.0f, 8853.0f, 0.5f, 0.6666666666666f);
+		stringFrequencies[1] = (1.0 / (2.0f * stringMappedPositions[1])) * openStringFrequencies[3] * 2.0f;
+	}
+	stringTouchLH[1] = (spiRXBuffer[8] >> 3) & 1;
+	stringTouchRH[1] = (spiRXBuffer[8] >> 7) & 1;
+#endif
+	/*
 	frameCounter++;
 	if (frameCounter >= 1)
 	{
 		frameCounter = 0;
-		buttonCheck();
 	}
-
+	*/
 	for (i = 0; i < (HALF_BUFFER_SIZE); i++)
 	{
 		if ((i & 1) == 0)
@@ -124,179 +187,85 @@ void audioFrame(uint16_t buffer_offset)
 	}
 }
 
-uint8_t snareTriggered = 0;
-uint8_t kickTriggered = 0;
+float rightIn = 0.0f;
+float envelope = 0.0f;
+float envelopeMax = 0.0f;
 
 float audioTickL(float audioIn)
 {
-	//read the analog inputs and smooth them with ramps
-	tRamp_setDest(&adc[0], 1.0f - (adcVals[0] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[1], 1.0f - (adcVals[1] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[2], 1.0f - (adcVals[2] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[3], 1.0f - (adcVals[3] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[4], 1.0f - (adcVals[4] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[5], 1.0f - (adcVals[5] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[6], 1.0f - (adcVals[6] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[7], 1.0f - (adcVals[7] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[8], (adcVals[8] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[9], (adcVals[9] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[10], (adcVals[10] * INV_TWO_TO_16));
-	tRamp_setDest(&adc[11], (adcVals[11] * INV_TWO_TO_16));
 
-	float drumGain = LEAF_clip(0.0f, tRamp_tick(&adc[0]) + tRamp_tick(&adc[8]), 2.0f);
-
-	//if digital input on jack 5, then trigger snare
-	if ((!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12)) == 1)
+	if ((stringTouchLH[0] == 1) && (stringPositions[0] == 65535))
 	{
-		if (snareTriggered == 0)
-		{
-			t808Snare_on(&mySnare, drumGain);
-			snareTriggered = 1;
-		}
+		//left hand mute
+		audioIn = 0.0f;
+		follower[0].y = 0.0f;
+		tRamp_setDest(&ampRamp[0], 0.0f);
+	}
+	else if (stringTouchRH[0] == 1)
+	{
+		//right hand mute
+		audioIn = 0.0f;
+		follower[0].y = 0.0f;
+		tRamp_setDest(&ampRamp[0], 0.0f);
 	}
 	else
 	{
-		snareTriggered = 0;
+		//not muted
+		tRamp_setDest(&ampRamp[0], 1.0f);
 	}
+	audioIn = tHighpass_tick(&dcBlocker[0], audioIn);
+	envelope = tEnvelopeFollower_tick(&follower[0], audioIn);
+	tSawtooth_setFreq(&mySaw[0],stringFrequencies[0]);
+	tCycle_setFreq(&mySine[0],stringFrequencies[0]);
+	sample = tCycle_tick(&mySine[0]) * envelope * tRamp_tick(&ampRamp[0]);
+	sample += tSawtooth_tick(&mySaw[0]) * envelope* tRamp_tick(&ampRamp[0]);
 
-	//if digital input on jack 6, then trigger kick
-	if ((!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13)) == 1)
+
+	if ((stringTouchLH[1] == 1) && (stringPositions[1] == 65535))
 	{
-		if (kickTriggered == 0)
-		{
-			t808Kick_on(&myKick, drumGain);
-			kickTriggered = 1;
-		}
+		//left hand mute
+		rightIn = 0.0f;
+		follower[1].y = 0.0f;
+		tRamp_setDest(&ampRamp[1], 0.0f);
+	}
+	else if (stringTouchRH[1] == 1)
+	{
+		//right hand mute
+		rightIn = 0.0f;
+		follower[1].y = 0.0f;
+		tRamp_setDest(&ampRamp[1], 0.0f);
 	}
 	else
 	{
-		kickTriggered = 0;
+		//not muted
+		tRamp_setDest(&ampRamp[1], 1.0f);
 	}
 
-	//OK, now some audio stuff
+	rightIn = tHighpass_tick(&dcBlocker[1], rightIn);
+	envelope = tEnvelopeFollower_tick(&follower[1], rightIn);
+	tCycle_setFreq(&mySine[1],stringFrequencies[1]);
+	tSawtooth_setFreq(&mySaw[1],stringFrequencies[1]);
+	sample += tCycle_tick(&mySine[1]) * envelope* tRamp_tick(&ampRamp[1]);
+	sample += tSawtooth_tick(&mySaw[1]) * envelope* tRamp_tick(&ampRamp[1]);
 
-	float newFreq = LEAF_clip   (0.0f, LEAF_midiToFrequency((tRamp_tick(&adc[2]) * 15.0f) + (tRamp_tick(&adc[9]) * 15.0f) + 30.0f), 24000.0f); //knob 3 sets snare freq (added with jack 2 CV input)
-	t808Snare_setToneNoiseMix(&mySnare, tRamp_tick(&adc[1]));//knob 2 sets noise mix
-	t808Snare_setTone1Decay(&mySnare, (tRamp_tick(&adc[3]) * 100.0f) + (tRamp_tick(&adc[10]) * 100.0f)); //knob 4 sets snare tone1 decay time (added with jack 3 CV input)
-	t808Snare_setTone2Decay(&mySnare, (tRamp_tick(&adc[3]) * 150.0f) + (tRamp_tick(&adc[10]) * 150.0f)); //knob 4 sets snare tone2 decay time (added with jack 3 CV input)
-	t808Snare_setNoiseDecay(&mySnare, (tRamp_tick(&adc[3]) * 100.0f) + (tRamp_tick(&adc[10]) * 100.0f)); //knob 4 sets snare noise decay time (added with jack 3 CV input)
-	t808Snare_setTone1Freq(&mySnare, newFreq);
-	t808Snare_setTone2Freq(&mySnare, newFreq * 1.5f);
-	sample = t808Snare_tick(&mySnare);//
-	LEAF_shaper(sample, 1.2f);
-	return sample;
-}
 
-float audioTickR(float audioIn)
-{
-	t808Kick_setToneFreq(&myKick, LEAF_midiToFrequency((tRamp_tick(&adc[4]) * 30.0f) + 14.0f)); //knob 5 sets kick freq
-	t808Kick_setToneDecay(&myKick, (tRamp_tick(&adc[5]) * 1000.0f) + (tRamp_tick(&adc[11]) * 1000.0f)); //knob 6 set kick decay (added to jack 4 CV in)
-	sample = t808Kick_tick(&myKick);
+
+
+	//sample = 0.0f;
 	LEAF_shaper(sample, 1.6f);
 	return sample;
 }
 
 
-void buttonCheck(void)
+float audioTickR(float audioIn)
 {
-	buttonValues[0] = !HAL_GPIO_ReadPin(GPIOD, GPIO_PIN_13);
-	buttonValues[1] = !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6);
-	buttonValues[2] = !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_7);
-	buttonValues[3] = !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_8);
+	rightIn = audioIn;
+	return sample;
+}
 
-	for (int i = 0; i < 4; i++)
-	{
-	  if ((buttonValues[i] != buttonValuesPrev[i]) && (buttonCounters[i] < 40))
-	  {
-		  buttonCounters[i]++;
-	  }
-	  if ((buttonValues[i] != buttonValuesPrev[i]) && (buttonCounters[i] >= 40))
-	  {
-		  if (buttonValues[i] == 1)
-		  {
-			  buttonPressed[i] = 1;
-		  }
-		  buttonValuesPrev[i] = buttonValues[i];
-		  buttonCounters[i] = 0;
-	  }
-	}
-
-	if (buttonPressed[0] == 1)
-	{
-		t808Snare_on(&mySnare, 1.0f);
-
-		RGB_mode++;
-		if (RGB_mode > 3)
-		{
-			RGB_mode = 0;
-		}
-		if (RGB_mode == 0)
-		{
-			RGB_LED_setColor(255, 0, 0);
-		}
-
-		else if (RGB_mode == 1)
-		{
-			RGB_LED_setColor(0, 255, 0);
-		}
-
-		else if (RGB_mode == 2)
-		{
-			RGB_LED_setColor(0, 0, 255);
-		}
-
-		else if (RGB_mode == 3)
-		{
-
-		}
-		buttonPressed[0] = 0;
-	}
-	if (buttonPressed[1] == 1)
-	{
-
-		if (mode1 == 0)
-		{
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_SET);
-			mode1 = 1;
-		}
-		else
-		{
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET);
-			mode1 = 0;
-		}
-
-		buttonPressed[1] = 0;
-	}
-	if (buttonPressed[2] == 1)
-	{
-		if (mode2 == 0)
-		{
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
-			mode2 = 1;
-		}
-		else
-		{
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_RESET);
-			mode2 = 0;
-		}
-		buttonPressed[2] = 0;
-	}
-
-	if (buttonPressed[3] == 1)
-	{
-
-		if (mode3 == 0)
-		{
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);
-			mode3 = 1;
-		}
-		else
-		{
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
-			mode3 = 0;
-		}
-		buttonPressed[3] = 0;
-	}
+float map(float value, float istart, float istop, float ostart, float ostop)
+{
+    return ostart + (ostop - ostart) * ((value - istart) / (istop - istart));
 }
 
 void HAL_SAI_ErrorCallback(SAI_HandleTypeDef *hsai)
