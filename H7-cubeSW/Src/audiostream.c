@@ -37,9 +37,12 @@ uint16_t attackDetected[2] = {0,0};
 tRamp ampRamp[2];
 tCycle mySine[2];
 tSawtooth mySaw[2];
+tEnvelope noiseEnv[2];
+tEnvelope filterEnv[2];
 tNoise myNoise[2];
 tEnvelopeFollower follower[2];
 tHighpass dcBlocker[2];
+tSVF lowpass[2];
 /**********************************************/
 
 typedef enum BOOL {
@@ -65,6 +68,9 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 		tNoise_init(&myNoise[i], WhiteNoise);
 		tEnvelopeFollower_init(&follower[i], .01f, .99995f);
 		tHighpass_init(&dcBlocker[i], 80.0f);
+		tEnvelope_init(&noiseEnv[i], 7.0f, 100.0f, 0);
+		tEnvelope_init(&filterEnv[i], 7.0f, 1000.0f, 0);
+		tSVF_init(&lowpass[i], SVFTypeLowpass, 100.0f, 0.7f);
 	}
 	/*
 	tCycle_init(&mySine[0]);
@@ -193,34 +199,37 @@ float envelopeMax = 0.0f;
 
 float audioTickL(float audioIn)
 {
-
-	if ((stringTouchLH[0] == 1) && (stringPositions[0] == 65535))
+	//process both strings
+	for (int i = 0; i < 2; i++)
 	{
-		//left hand mute
-		audioIn = 0.0f;
-		follower[0].y = 0.0f;
-		tRamp_setDest(&ampRamp[0], 0.0f);
-	}
-	else if (stringTouchRH[0] == 1)
-	{
-		//right hand mute
-		audioIn = 0.0f;
-		follower[0].y = 0.0f;
-		tRamp_setDest(&ampRamp[0], 0.0f);
-	}
-	else
-	{
-		//not muted
-		tRamp_setDest(&ampRamp[0], 1.0f);
-	}
-	audioIn = tHighpass_tick(&dcBlocker[0], audioIn);
-	envelope = tEnvelopeFollower_tick(&follower[0], audioIn);
-	tSawtooth_setFreq(&mySaw[0],stringFrequencies[0]);
-	tCycle_setFreq(&mySine[0],stringFrequencies[0]);
-	sample = tCycle_tick(&mySine[0]) * envelope * tRamp_tick(&ampRamp[0]);
-	sample += tSawtooth_tick(&mySaw[0]) * envelope* tRamp_tick(&ampRamp[0]);
 
-
+		if ((stringTouchLH[i] == 1) && (stringPositions[i] == 65535))
+		{
+			//left hand mute
+			audioIn = 0.0f;
+			follower[i].y = 0.0f;
+			tRamp_setDest(&ampRamp[i], 0.0f);
+		}
+		else if (stringTouchRH[i] == 1)
+		{
+			//right hand mute
+			audioIn = 0.0f;
+			follower[i].y = 0.0f;
+			tRamp_setDest(&ampRamp[i], 0.0f);
+		}
+		else
+		{
+			//not muted
+			tRamp_setDest(&ampRamp[i], 1.0f);
+		}
+		audioIn = tHighpass_tick(&dcBlocker[i], audioIn);
+		envelope = tEnvelopeFollower_tick(&follower[i], audioIn);
+		tSawtooth_setFreq(&mySaw[i],stringFrequencies[i]);
+		tCycle_setFreq(&mySine[i],stringFrequencies[i]);
+		sample = tCycle_tick(&mySine[i]) * envelope * tRamp_tick(&ampRamp[i]);
+		sample += tSawtooth_tick(&mySaw[i]) * envelope* tRamp_tick(&ampRamp[i]);
+	}
+/*
 	if ((stringTouchLH[1] == 1) && (stringPositions[1] == 65535))
 	{
 		//left hand mute
@@ -247,7 +256,7 @@ float audioTickL(float audioIn)
 	tSawtooth_setFreq(&mySaw[1],stringFrequencies[1]);
 	sample += tCycle_tick(&mySine[1]) * envelope* tRamp_tick(&ampRamp[1]);
 	sample += tSawtooth_tick(&mySaw[1]) * envelope* tRamp_tick(&ampRamp[1]);
-
+*/
 
 
 
