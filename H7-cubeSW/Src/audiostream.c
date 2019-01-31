@@ -6,10 +6,10 @@
 #include "tim.h"
 #include "ui.h"
 
-#define LOWBOARD
+#define HIGHBOARD
 #define NUM_SAWS 3
-#define ATTACK_DETECTOR_BETWEEN_ATTACK_WAIT 3000
-#define ATTACK_DETECTOR_POST_PEAK 2
+#define ATTACK_DETECTOR_BETWEEN_ATTACK_WAIT 5000
+#define ATTACK_DETECTOR_POST_PEAK 5
 #define SHORT_DECAY .9996f
 #define LONG_DECAY .99998f
 //the audio buffers are put in the D2 RAM area because that is a memory location that the DMA has access to.
@@ -94,6 +94,7 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 	{
 		tRamp_init(&ampRamp[i],100.0f, 1);
 		tCycle_init(&mySine[i]);
+		tCycle_setFreq(&mySine[i], 220.0f);
 		for (int j = 0; j < NUM_SAWS; j++)
 		{
 			detuneAmounts[i][j] = (randomNumber() * maxDetune) - (maxDetune * .5f);
@@ -101,7 +102,7 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 		}
 		tNoise_init(&myNoise[i], WhiteNoise);
 		tEnvelopeFollower_init(&follower[i], .01f, LONG_DECAY);
-		tHighpass_init(&dcBlocker[i], 500.0f);
+		tHighpass_init(&dcBlocker[i], 30.0f);
 		tEnvelope_init(&noiseEnv[i], 7.0f, 20.0f, 0);
 		tEnvelope_init(&filterEnv[i], 7.0f, 150.0f, 0);
 		tSVF_init(&lowpass[i], SVFTypeLowpass, 100.0f, 1.0f);
@@ -221,7 +222,11 @@ void audioFrame(uint16_t buffer_offset)
 float audioTickL(float audioIn)
 {
 	sample = 0.0f;
+	//sample = audioIn + rightIn;
+	//sample = tHighpass_tick(&dcBlocker[0], sample);
+	//sample = audioIn;
 	//process both strings
+
 	for (int i = 0; i < 2; i++)
 	{
 		if (i == 1)
@@ -229,7 +234,7 @@ float audioTickL(float audioIn)
 			audioIn = rightIn;
 		}
 
-		LEAF_softClip(audioIn * 5.0f, .8f);
+		//LEAF_softClip(audioIn * 1.0f, .8f);
 
 		if ((stringTouchLH[i] == 1) && (stringPositions[i] == 65535))
 		{
@@ -286,17 +291,17 @@ float audioTickL(float audioIn)
 				envelopeState[i] = 2; // falling
 				// send a noteOn, and record the velocity
 				velocity[i] = 0.0f;
-				/*
-				for (int j = 0; j < ATTACK_DETECTOR_POST_PEAK; j++)
+
+				//for (int j = 0; j < ATTACK_DETECTOR_POST_PEAK; j++)
 				{
 
-					if (envelopeMemory[i][j] > velocity[i])
+					//if (envelopeMemory[i][j] > velocity[i])
 					{
-						velocity[i] = envelopeMemory[i][j];
+						//velocity[i] = envelopeMemory[i][j];
 					}
 
 				}
-				*/
+
 				velocity[i] = 0.1f;
 				noteOnHappened[i] = 1;
 			}
@@ -342,15 +347,12 @@ float audioTickL(float audioIn)
 			//sawtooths += tSawtooth_tick(&mySaw[i][j]) * envelope[i] * tRamp_tick(&ampRamp[i]);
 			sawtooths += tSawtooth_tick(&mySaw[i][j]) * tADSR_tick(&mainEnv[i]);
 		}
-
-
-		//sample += tSVF_tick(&lowpass[i], tSawtooth_tick(&mySaw[i])) * envelope[i]* tRamp_tick(&ampRamp[i]);
 		sample += tSVF_tick(&lowpass[i], sawtooths);
 	}
 
-	//sample = 0.0f;
 	sample *= .5f;
 	LEAF_shaper(sample, 1.6f);
+
 	return sample;
 }
 
@@ -358,6 +360,7 @@ float audioTickL(float audioIn)
 float audioTickR(float audioIn)
 {
 	rightIn = audioIn;
+	//sample = audioIn;
 	return sample;
 }
 
