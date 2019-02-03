@@ -6,10 +6,18 @@
 #include "tim.h"
 #include "ui.h"
 
-#define HIGHBOARD
-#define NUM_SAWS 3
-#define ATTACK_DETECTOR_BETWEEN_ATTACK_WAIT 5000
-#define ATTACK_DETECTOR_POST_PEAK 5
+//TODO: add hysteresis for frets
+//TODO: add wait time for attacks if we are in mute mode
+
+
+#define LOWBOARD
+//#define HIGHBOARD
+
+#define NUM_SAWS 2
+#define ATTACK_DETECTOR_BETWEEN_ATTACK_WAIT 1000
+#define ATTACK_DETECTOR_POST_PEAK 10
+#define LHCOUNTERMAX 800
+#define ATTACKWAITINGMAX 100
 #define SHORT_DECAY .9996f
 #define LONG_DECAY .99998f
 //the audio buffers are put in the D2 RAM area because that is a memory location that the DMA has access to.
@@ -37,7 +45,7 @@ uint16_t frameCounter = 0;
 float attack[2] = {0,0};
 uint16_t attackDetected[2] = {0,0};
 float detuneAmounts[2][NUM_SAWS];
-float maxDetune = .09f;
+float maxDetune = .02f;
 float rightIn = 0.0f;
 float envelope[2];
 float prevEnvelope[2];
@@ -47,25 +55,30 @@ uint32_t envelopeCounterFall[2];
 uint32_t envelopeState[2]; //0 is resting, 1 is rising, 2 is falling
 float envelopeMargin = 0.0001f;
 float envelopeMemory[2][ATTACK_DETECTOR_POST_PEAK];
+uint32_t LHcounter[2];
 uint32_t noteOnHappened[2];
 uint32_t noteOffHappened[2];
 float velocity[2];
+uint32_t attackWaitCounter[2];
 
 uint16_t stringPositions[2];
 float stringMappedPositions[2];
 float stringFrequencies[2];
 float stringMIDIVersionOfFrequencies[2];
+uint32_t currentMIDInotes[2];
+uint32_t previousMIDInotes[2];
 uint8_t stringTouchLH[2] = {0,0};
 uint8_t stringTouchRH[2] = {0,0};
 float openStringFrequencies[4] = {41.204f, 55.0f, 73.416f, 97.999f};
 
-
+uint8_t muteModes[2];
+uint32_t attackWaiting[2];
+uint32_t attackCountdown[2];
 //audio objects
 tRamp ampRamp[2];
 tCycle mySine[2];
 tSawtooth mySaw[2][NUM_SAWS];
 tEnvelope noiseEnv[2];
-tEnvelope filterEnv[2];
 tNoise myNoise[2];
 tSVF noiseFilt[2];
 tEnvelopeFollower follower[2];
@@ -73,6 +86,7 @@ tHighpass dcBlocker[2];
 tSVF lowpass[2];
 tRamp followerRamp[2];
 tADSR mainEnv[2];
+tADSR filterEnv[2];
 /**********************************************/
 
 typedef enum BOOL {
@@ -104,11 +118,12 @@ void audioInit(I2C_HandleTypeDef* hi2c, SAI_HandleTypeDef* hsaiOut, SAI_HandleTy
 		tEnvelopeFollower_init(&follower[i], .01f, LONG_DECAY);
 		tHighpass_init(&dcBlocker[i], 30.0f);
 		tEnvelope_init(&noiseEnv[i], 7.0f, 20.0f, 0);
-		tEnvelope_init(&filterEnv[i], 7.0f, 150.0f, 0);
-		tSVF_init(&lowpass[i], SVFTypeLowpass, 100.0f, 1.0f);
+
+		tSVF_init(&lowpass[i], SVFTypeLowpass, 100.0f, .8f);
 		tSVF_init(&noiseFilt[i], SVFTypeBandpass, 1500.0f, 0.5f);
 		tRamp_init(&followerRamp[i], 10.0f, 1);
-		tADSR_init(&mainEnv[i], 7.0f, 5000.0f, 1.0f, 150.0f);
+		tADSR_init(&mainEnv[i], 7.0f, 8000.0f, 0.1f, 150.0f);
+		tADSR_init(&filterEnv[i], 7.0f, 10.0f, 0.0f, 150.0f);
 	}
 
 	//now to send all the necessary messages to the codec
@@ -134,73 +149,7 @@ void audioFrame(uint16_t buffer_offset)
 	int i;
 	int32_t current_sample = 0;
 
-#ifdef LOWBOARD
-	stringPositions[0] =  ((uint16_t)spiRXBuffer[2] << 8) + ((uint16_t)spiRXBuffer[3] & 0xff);
-	if (stringPositions[0] == 65535)
-	{
-		stringFrequencies[0] = openStringFrequencies[0];
-		stringMIDIVersionOfFrequencies[0] = LEAF_frequencyToMidi(stringFrequencies[0]);
-	}
-	else
-	{
-		stringMappedPositions[0] = map((float)stringPositions[0], 4505.0f, 9126.0f, 0.5f, 0.66666666666f);
-		stringFrequencies[0] = (1.0 / (2.0f * stringMappedPositions[0])) * openStringFrequencies[0] * 2.0f;
-		stringMIDIVersionOfFrequencies[0] = LEAF_frequencyToMidi(stringFrequencies[0]);
-	}
-	stringTouchLH[0] = (spiRXBuffer[8] >> 0) & 1;
-	stringTouchRH[0] = (spiRXBuffer[8] >> 4) & 1;
 
-
-	stringPositions[1] =  ((uint16_t)spiRXBuffer[6] << 8) + ((uint16_t)spiRXBuffer[7] & 0xff);
-
-	if (stringPositions[1] == 65535)
-	{
-		stringFrequencies[1] = openStringFrequencies[1];
-		stringMIDIVersionOfFrequencies[1] = LEAF_frequencyToMidi(stringFrequencies[1]);
-	}
-	else
-	{
-		stringMappedPositions[1] = map((float)stringPositions[1], 4230.0f, 8704.0f, 0.5f, 0.66666666f);
-		stringFrequencies[1] = (1.0 / (2.0f * stringMappedPositions[1])) * openStringFrequencies[1] * 2.0f;
-		stringMIDIVersionOfFrequencies[1] = LEAF_frequencyToMidi(stringFrequencies[1]);
-	}
-	stringTouchLH[1] = (spiRXBuffer[8] >> 1) & 1;
-	stringTouchRH[1] = (spiRXBuffer[8] >> 5) & 1;
-#endif
-
-#ifdef HIGHBOARD
-	stringPositions[0] =  ((uint16_t)spiRXBuffer[4] << 8) + ((uint16_t)spiRXBuffer[5] & 0xff);
-	if (stringPositions[0] == 65535)
-	{
-		stringFrequencies[0] = openStringFrequencies[2];
-		stringMIDIVersionOfFrequencies[0] = LEAF_frequencyToMidi(stringFrequencies[0]);
-	}
-	else
-	{
-		stringMappedPositions[0] = map((float)stringPositions[0], 4462.0f, 9168.0f, 0.5f, 0.6666666666f);
-		stringFrequencies[0] = (1.0 / (2.0f * stringMappedPositions[0])) * openStringFrequencies[2] * 2.0f;
-		stringMIDIVersionOfFrequencies[0] = LEAF_frequencyToMidi(stringFrequencies[0]);
-	}
-	stringTouchLH[0] = (spiRXBuffer[8] >> 2) & 1;
-	stringTouchRH[0] = (spiRXBuffer[8] >> 6) & 1;
-
-
-	stringPositions[1] =  ((uint16_t)spiRXBuffer[0] << 8) + ((uint16_t)spiRXBuffer[1] & 0xff);
-
-	if (stringPositions[1] == 65535)
-	{
-		stringFrequencies[1] = openStringFrequencies[3];
-		stringMIDIVersionOfFrequencies[1] = LEAF_frequencyToMidi(stringFrequencies[1]);
-	}
-	else
-	{
-		stringMappedPositions[1] = map((float)stringPositions[1], 4294.0f, 8853.0f, 0.5f, 0.6666666666666f);
-		stringFrequencies[1] = (1.0 / (2.0f * stringMappedPositions[1])) * openStringFrequencies[3] * 2.0f;
-		stringMIDIVersionOfFrequencies[1] = LEAF_frequencyToMidi(stringFrequencies[1]);
-	}
-	stringTouchLH[1] = (spiRXBuffer[8] >> 3) & 1;
-	stringTouchRH[1] = (spiRXBuffer[8] >> 7) & 1;
-#endif
 
 	for (i = 0; i < (HALF_BUFFER_SIZE); i++)
 	{
@@ -225,6 +174,86 @@ float audioTickL(float audioIn)
 	//sample = audioIn + rightIn;
 	//sample = tHighpass_tick(&dcBlocker[0], sample);
 	//sample = audioIn;
+#ifdef LOWBOARD
+	stringPositions[0] =  ((uint16_t)spiRXBuffer[2] << 8) + ((uint16_t)spiRXBuffer[3] & 0xff);
+	if (stringPositions[0] == 65535)
+	{
+		if (stringTouchLH[0] != 1)
+		{
+			stringFrequencies[0] = openStringFrequencies[0];
+			stringMIDIVersionOfFrequencies[0] = LEAF_frequencyToMidi(stringFrequencies[0]);
+		}
+	}
+	else
+	{
+		stringMappedPositions[0] = map((float)stringPositions[0], 4505.0f, 9126.0f, 0.5f, 0.66666666666f); //scale length of measurement from 12th fret to 7th fret to be string length of .5 to .666666
+		stringFrequencies[0] = (1.0 / (2.0f * stringMappedPositions[0])) * openStringFrequencies[0] * 2.0f;
+		stringMIDIVersionOfFrequencies[0] = LEAF_frequencyToMidi(stringFrequencies[0]);
+	}
+	stringTouchLH[0] = (spiRXBuffer[8] >> 0) & 1;
+	stringTouchRH[0] = (spiRXBuffer[8] >> 4) & 1;
+
+
+	stringPositions[1] =  ((uint16_t)spiRXBuffer[6] << 8) + ((uint16_t)spiRXBuffer[7] & 0xff);
+
+	if (stringPositions[1] == 65535)
+	{
+		if (stringTouchLH[1] != 1)
+		{
+			stringFrequencies[1] = openStringFrequencies[1];
+			stringMIDIVersionOfFrequencies[1] = LEAF_frequencyToMidi(stringFrequencies[1]);
+		}
+	}
+	else
+	{
+		stringMappedPositions[1] = map((float)stringPositions[1], 4230.0f, 8704.0f, 0.5f, 0.66666666f); //scale length of measurement from 12th fret to 7th fret to be string length of .5 to .666666
+		stringFrequencies[1] = (1.0 / (2.0f * stringMappedPositions[1])) * openStringFrequencies[1] * 2.0f;
+		stringMIDIVersionOfFrequencies[1] = LEAF_frequencyToMidi(stringFrequencies[1]);
+	}
+	stringTouchLH[1] = (spiRXBuffer[8] >> 1) & 1;
+	stringTouchRH[1] = (spiRXBuffer[8] >> 5) & 1;
+#endif
+
+#ifdef HIGHBOARD
+	stringPositions[0] =  ((uint16_t)spiRXBuffer[4] << 8) + ((uint16_t)spiRXBuffer[5] & 0xff);
+	if (stringPositions[0] == 65535)
+	{
+		if (stringTouchLH[0] != 1)
+		{
+			stringFrequencies[0] = openStringFrequencies[2];
+			stringMIDIVersionOfFrequencies[0] = LEAF_frequencyToMidi(stringFrequencies[0]);
+		}
+	}
+	else
+	{
+		stringMappedPositions[0] = map((float)stringPositions[0], 4462.0f, 9168.0f, 0.5f, 0.6666666666f);
+		stringFrequencies[0] = (1.0 / (2.0f * stringMappedPositions[0])) * openStringFrequencies[2] * 2.0f;
+		stringMIDIVersionOfFrequencies[0] = LEAF_frequencyToMidi(stringFrequencies[0]);
+	}
+	stringTouchLH[0] = (spiRXBuffer[8] >> 2) & 1;
+	stringTouchRH[0] = (spiRXBuffer[8] >> 6) & 1;
+
+
+	stringPositions[1] =  ((uint16_t)spiRXBuffer[0] << 8) + ((uint16_t)spiRXBuffer[1] & 0xff);
+
+	if (stringPositions[1] == 65535)
+	{
+		if (stringTouchLH[1] != 1)
+		{
+			stringFrequencies[1] = openStringFrequencies[3];
+			stringMIDIVersionOfFrequencies[1] = LEAF_frequencyToMidi(stringFrequencies[1]);
+		}
+	}
+	else
+	{
+		stringMappedPositions[1] = map((float)stringPositions[1], 4294.0f, 8853.0f, 0.5f, 0.6666666666666f);
+		stringFrequencies[1] = (1.0 / (2.0f * stringMappedPositions[1])) * openStringFrequencies[3] * 2.0f;
+		stringMIDIVersionOfFrequencies[1] = LEAF_frequencyToMidi(stringFrequencies[1]);
+	}
+	stringTouchLH[1] = (spiRXBuffer[8] >> 3) & 1;
+	stringTouchRH[1] = (spiRXBuffer[8] >> 7) & 1;
+#endif
+
 	//process both strings
 
 	for (int i = 0; i < 2; i++)
@@ -239,25 +268,53 @@ float audioTickL(float audioIn)
 		if ((stringTouchLH[i] == 1) && (stringPositions[i] == 65535))
 		{
 			//left hand mute
-			audioIn = 0.0f;
-			follower[i].d_coeff  = SHORT_DECAY;
-			tADSR_off(&mainEnv[i]);
-			tRamp_setDest(&ampRamp[i], 0.0f);
+			//maybe need to count up before implementing
+			LHcounter[i]++;
+			if (LHcounter[i] > LHCOUNTERMAX)
+			{
+				//audioIn = 0.0f;
+				//follower[i].d_coeff  = SHORT_DECAY;
+				tADSR_off(&mainEnv[i]);
+				//tRamp_setDest(&ampRamp[i], 0.0f);
+				muteModes[i] = 1;
+				//LHcounter[i] = 0;
+				if ((attackWaiting[i] > 0) && (attackWaitCounter[i] <= ATTACKWAITINGMAX))
+				{
+					attackWaitCounter[i]++;
+				}
+			}
 		}
 		else if (stringTouchRH[i] == 1)
 		{
 			//right hand mute
-			audioIn = 0.0f;
-			follower[i].d_coeff  = SHORT_DECAY;
+			//audioIn = 0.0f;
+			//follower[i].d_coeff  = SHORT_DECAY;
 			tADSR_off(&mainEnv[i]);
-			tRamp_setDest(&ampRamp[i], 0.0f);
+			//tRamp_setDest(&ampRamp[i], 0.0f);
+			LHcounter[i] = 0;
+			muteModes[i] = 2;
+			if ((attackWaiting[i] > 0) && (attackWaitCounter[i] <= ATTACKWAITINGMAX))
+			{
+				attackWaitCounter[i]++;
+			}
 		}
 		else
 		{
 			//not muted
-			tRamp_setDest(&ampRamp[i], 1.0f);
+			//tRamp_setDest(&ampRamp[i], 1.0f);
+			//follower[i].d_coeff  = LONG_DECAY;
+			LHcounter[i] = 0;
+			muteModes[i] = 0;
+			if ((attackWaiting[i] > 0) && (attackWaitCounter[i] < ATTACKWAITINGMAX))
+			{
+				//tEnvelope_on(&noiseEnv[i], velocity[i]);
+				tADSR_on(&filterEnv[i],.2f);
+				tADSR_on(&mainEnv[i], .2f);
+				attackWaiting[i] = 0;
+				attackWaitCounter[i] = 0;
+				noteOnHappened[i] = 0;
+			}
 
-			follower[i].d_coeff  = LONG_DECAY;
 		}
 		audioIn = tHighpass_tick(&dcBlocker[i], audioIn);
 		envelope[i] = tEnvelopeFollower_tick(&follower[i], audioIn);
@@ -290,7 +347,7 @@ float audioTickL(float audioIn)
 			{
 				envelopeState[i] = 2; // falling
 				// send a noteOn, and record the velocity
-				velocity[i] = 0.0f;
+				//velocity[i] = 0.0f;
 
 				//for (int j = 0; j < ATTACK_DETECTOR_POST_PEAK; j++)
 				{
@@ -304,6 +361,7 @@ float audioTickL(float audioIn)
 
 				velocity[i] = 0.1f;
 				noteOnHappened[i] = 1;
+
 			}
 		}
 
@@ -313,44 +371,67 @@ float audioTickL(float audioIn)
 
 		if (noteOnHappened[i] == 1)
 		{
-			noteOnHappened[i] = 0;
-			tEnvelope_on(&noiseEnv[i], velocity[i]);
-			tEnvelope_on(&filterEnv[i], velocity[i]);
-			tADSR_on(&mainEnv[i], 1.0f);
+
+			if (muteModes[i] ==1)
+			{
+				//if ((attackCountdown[i] > 0) && (attackWaiting[i] == 1))
+				{
+					//attackCountdown[i]--;
+				}
+				//else if (attackCountdown[i] > 0)
+				{
+					//attackCountdown[i] = 10;
+					attackWaiting[i] = 1;
+					noteOnHappened[i] = 0;
+				}
+				//else
+				{
+					//attackWaiting[i] = 0;
+				}
+
+			}
+			else
+			{
+				//tEnvelope_on(&noiseEnv[i], velocity[i]);
+				tADSR_on(&filterEnv[i],0.2f);
+				tADSR_on(&mainEnv[i], 0.2f);
+				noteOnHappened[i] = 0;
+			}
 		}
 
-		float filtFreq = tEnvelope_tick(&filterEnv[i]) * 40000.0f + stringFrequencies[i] * 2.0f;
+		float filtFreq = tADSR_tick(&filterEnv[i]) * 1000.0f + (stringFrequencies[i] * 2.0f);
 		if (filtFreq > 18000.0f)
 		{
 			filtFreq = 18000.0f;
 		}
 		tSVF_setFreq(&lowpass[i], filtFreq);
-		tSVF_setFreq(&noiseFilt[i], filtFreq * .2f);
+		tSVF_setFreq(&noiseFilt[i], filtFreq * 1.f);
 		sample += tSVF_tick(&noiseFilt[i], (tNoise_tick(&myNoise[i]) * tEnvelope_tick(&noiseEnv[i])));
-
-		tCycle_setFreq(&mySine[i],stringFrequencies[i]);
-		tSVF_setFreq(&lowpass[i], (envelope[i] * 20000.0f) + 1000.0f);
+		float roundedFreq = round(stringMIDIVersionOfFrequencies[i]);
+		tCycle_setFreq(&mySine[i],LEAF_midiToFrequency(roundedFreq) * 1.0f);
+		//tSVF_setFreq(&lowpass[i], (envelope[i] * 1000.0f) + 40.0f);
 		//sample += tCycle_tick(&mySine[i]) * envelope[i] * tRamp_tick(&ampRamp[i]);
-		sample += tCycle_tick(&mySine[i]) * tADSR_tick(&mainEnv[i]);
+		float currentGain = tADSR_tick(&mainEnv[i]);
+		sample += tCycle_tick(&mySine[i]) * currentGain;
 
 		float sawtooths = 0.0f;
 		for (int j = 0; j < NUM_SAWS; j++)
 		{
 			if (j == 0)
 			{
-				tSawtooth_setFreq(&mySaw[i][j], LEAF_midiToFrequency(stringMIDIVersionOfFrequencies[i] + detuneAmounts[i][j]) * 2.0f);
+				tSawtooth_setFreq(&mySaw[i][j], LEAF_midiToFrequency(roundedFreq + detuneAmounts[i][j]) * 1.0f);
 			}
 			else
 			{
-				tSawtooth_setFreq(&mySaw[i][j], LEAF_midiToFrequency(stringMIDIVersionOfFrequencies[i] + detuneAmounts[i][j]));
+				tSawtooth_setFreq(&mySaw[i][j], LEAF_midiToFrequency(roundedFreq + detuneAmounts[i][j]) * 1.0f);
 			}
 			//sawtooths += tSawtooth_tick(&mySaw[i][j]) * envelope[i] * tRamp_tick(&ampRamp[i]);
-			sawtooths += tSawtooth_tick(&mySaw[i][j]) * tADSR_tick(&mainEnv[i]);
+			sawtooths += tSawtooth_tick(&mySaw[i][j]) * currentGain;
 		}
 		sample += tSVF_tick(&lowpass[i], sawtooths);
 	}
 
-	sample *= .5f;
+	sample *= 1.0f;
 	LEAF_shaper(sample, 1.6f);
 
 	return sample;
